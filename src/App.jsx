@@ -24,6 +24,7 @@ const CATEGORIES = [
   { value: 'water-sewerage',     label: 'Water & Sewerage Tankers',color: '#0e7490', bg: '#ccfbf1' },
   { value: 'parking',            label: 'Parking',                 color: '#b45309', bg: '#fef3c7' },
   { value: 'lifts',              label: 'Lifts',                   color: '#be185d', bg: '#fce7f3' },
+  { value: 'cams',              label: 'CAMS',                    color: '#475569', bg: '#f1f5f9' },
 ];
 
 const COLS = [
