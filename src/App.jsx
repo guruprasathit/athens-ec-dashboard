@@ -16,7 +16,14 @@ const CATEGORIES = [
   { value: 'revenue',  label: 'Revenue',                   color: '#059669', bg: '#d1fae5' },
   { value: 'security', label: 'Security',                  color: '#dc2626', bg: '#fee2e2' },
   { value: 'meeting',  label: 'Meeting',                   color: '#7c3aed', bg: '#ede9fe' },
-  { value: 'community-events', label: 'Community Events', color: '#0891b2', bg: '#cffafe' },
+  { value: 'community-events',    label: 'Community Events',        color: '#0891b2', bg: '#cffafe' },
+  { value: 'cleanliness',        label: 'Cleanliness',             color: '#16a34a', bg: '#dcfce7' },
+  { value: 'ifm',                label: 'IFM',                     color: '#9333ea', bg: '#f3e8ff' },
+  { value: 'eb-monitoring',      label: 'EB Monitoring',           color: '#ca8a04', bg: '#fef9c3' },
+  { value: 'wtp',                label: 'WTP',                     color: '#0369a1', bg: '#e0f2fe' },
+  { value: 'water-sewerage',     label: 'Water & Sewerage Tankers',color: '#0e7490', bg: '#ccfbf1' },
+  { value: 'parking',            label: 'Parking',                 color: '#b45309', bg: '#fef3c7' },
+  { value: 'lifts',              label: 'Lifts',                   color: '#be185d', bg: '#fce7f3' },
 ];
 
 const COLS = [
