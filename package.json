@@ -1,0 +1,26 @@
+{
+  "name": "athens-ec-dashboard",
+  "version": "1.0.0",
+  "description": "Athens EC Tasks Dashboard",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js & vite",
+    "server": "node server.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "express": "^5.2.1",
+    "vite": "^7.3.0"
+  }
+}
