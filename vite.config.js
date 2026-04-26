@@ -11,4 +11,16 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          pdf: ['jspdf', 'jspdf-autotable'],
+          xlsx: ['xlsx'],
+        },
+      },
+    },
+  },
 })
