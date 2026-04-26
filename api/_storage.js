@@ -1,8 +1,11 @@
 // api/_storage.js — Athens EC Tasks Dashboard
+// Uses Upstash Redis when KV_REST_API_URL + KV_REST_API_TOKEN are set (Vercel KV / Upstash).
+// Falls back to local file storage for development.
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 
-const DATA_DIR = process.env.VERCEL ? '/tmp/athens-ec-data' : join(process.cwd(), 'data');
+// ── File storage (local dev) ───────────────────────────────────────────────────
+const DATA_DIR = join(process.cwd(), 'data');
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 function fileGet(key) {
@@ -18,38 +21,60 @@ function fileDel(key) {
   if (existsSync(file)) { try { unlinkSync(file); } catch {} }
 }
 
+// ── Upstash Redis (production) ────────────────────────────────────────────────
 const kvConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
-async function withRetry(fn, retries = 3, delayMs = 300) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try { return await fn(); } catch (err) {
-      const retriable = err.message?.includes('fetch failed') || err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET';
-      if (retriable && attempt < retries) { await new Promise(r => setTimeout(r, delayMs * attempt)); continue; }
-      throw err;
-    }
-  }
+function getRedisClient() {
+  const { Redis } = require('@upstash/redis');
+  return new Redis({
+    url: process.env.KV_REST_API_URL,
+    token: process.env.KV_REST_API_TOKEN,
+  });
 }
 
+// ── Unified API ───────────────────────────────────────────────────────────────
 export async function get(key) {
   if (kvConfigured) {
-    try { const { kv } = await import('@vercel/kv'); return await withRetry(() => kv.get(key)); }
-    catch (err) { console.error(`[Storage] KV get("${key}") failed, using file. ${err.message}`); return fileGet(key); }
+    try {
+      const { Redis } = await import('@upstash/redis');
+      const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+      return await redis.get(key);
+    } catch (err) {
+      console.error(`[Storage] Redis get("${key}") failed, using file. ${err.message}`);
+      return fileGet(key);
+    }
   }
   return fileGet(key);
 }
 
 export async function set(key, value) {
   if (kvConfigured) {
-    try { const { kv } = await import('@vercel/kv'); return await withRetry(() => kv.set(key, value)); }
-    catch (err) { console.error(`[Storage] KV set("${key}") failed, using file. ${err.message}`); fileSet(key, value); return; }
+    try {
+      const { Redis } = await import('@upstash/redis');
+      const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+      await redis.set(key, value);
+      return;
+    } catch (err) {
+      console.error(`[Storage] Redis set("${key}") failed, using file. ${err.message}`);
+      fileSet(key, value);
+      return;
+    }
   }
   fileSet(key, value);
 }
 
 export async function del(key) {
   if (kvConfigured) {
-    try { const { kv } = await import('@vercel/kv'); return await withRetry(() => kv.del(key)); }
-    catch (err) { console.error(`[Storage] KV del("${key}") failed, using file. ${err.message}`); fileDel(key); return; }
+    try {
+      const { Redis } = await import('@upstash/redis');
+      const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+      await redis.del(key);
+      return;
+    } catch (err) {
+      console.error(`[Storage] Redis del("${key}") failed, using file. ${err.message}`);
+      fileDel(key);
+      return;
+    }
   }
   fileDel(key);
 }
