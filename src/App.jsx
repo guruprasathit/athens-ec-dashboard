@@ -33,6 +33,7 @@ const CATEGORIES = [
   { value: 'rules-regulations',label: 'Rules and Regulations',   color: '#7c2d12', bg: '#ffedd5' },
   { value: 'mygate',           label: 'Mygate',                  color: '#1d4ed8', bg: '#dbeafe' },
   { value: 'ev-carwash',       label: 'EV & Carwash Bay',        color: '#15803d', bg: '#dcfce7' },
+  { value: 'vendors',          label: 'Vendors',                 color: '#92400e', bg: '#fef3c7' },
 ];
 
 const COLS = [
