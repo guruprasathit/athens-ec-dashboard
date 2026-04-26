@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Download, Calendar, Clock, CheckCircle2, Circle, Trash2, Edit2, Database, RefreshCw, Activity, User, Mail, X, AlertTriangle, MessageSquare, Send, Tag, Search, Filter, XCircle, FileText } from 'lucide-react';
+import { Plus, Download, Calendar, Clock, CheckCircle2, Circle, Trash2, Edit2, Database, RefreshCw, Activity, User, Mail, X, AlertTriangle, MessageSquare, Send, Tag, Search, Filter, XCircle, FileText, Image } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -47,9 +47,36 @@ const BLANK_FORM = {
   title: '', description: '', priority: 'medium', dueDate: '',
   status: 'backlog', category: '',
   assigneeName: '', assigneeEmail: '', reporterName: '',
+  images: [],
 };
 
 const MAX_COMMENTS = 5;
+const MAX_IMAGES = 3;
+
+// ── Image compression ─────────────────────────────────────────────────────────
+
+function compressImage(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new window.Image();
+      img.onload = () => {
+        const MAX = 600;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else { width = Math.round(width * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.65));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -258,6 +285,7 @@ function CommentsSection({ task, user, onAddComment }) {
 function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
   const p = PRIORITY[task.priority] || PRIORITY.medium;
   const cat = categoryMeta(task.category);
+  const [lightbox, setLightbox] = useState(null);
 
   return (
     <div style={{ background: 'white', borderRadius: 10, padding: '1rem', border: '1px solid #e5e7eb', borderLeft: `4px solid ${p.color}`, marginBottom: '0.75rem' }}>
@@ -333,6 +361,24 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
         <button onClick={() => onMove(task.id, 'in-progress')} style={{ width: '100%', padding: '6px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem', marginTop: 4 }}>Reopen</button>
       )}
 
+      {/* Images */}
+      {(task.images || []).length > 0 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10, marginTop: 6 }}>
+          {task.images.map((src, i) => (
+            <img key={i} src={src} alt="" onClick={() => setLightbox(src)}
+              style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'zoom-in' }} />
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '1rem' }}>
+          <img src={lightbox} alt="" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 10, boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }} onClick={e => e.stopPropagation()} />
+          <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'white', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+        </div>
+      )}
+
       {/* Comments */}
       <CommentsSection task={task} user={user} onAddComment={onAddComment} />
     </div>
@@ -344,6 +390,18 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
 function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
   const inp = { width: '100%', padding: '9px 12px', border: '2px solid #e5e7eb', borderRadius: 8, fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12, outline: 'none' };
   const lbl = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' };
+
+  const handleImageUpload = async e => {
+    const files = Array.from(e.target.files);
+    const current = form.images || [];
+    const slots = MAX_IMAGES - current.length;
+    if (slots <= 0) return;
+    const compressed = await Promise.all(files.slice(0, slots).map(compressImage));
+    setForm(f => ({ ...f, images: [...(f.images || []), ...compressed] }));
+    e.target.value = '';
+  };
+
+  const removeImage = idx => setForm(f => ({ ...f, images: (f.images || []).filter((_, i) => i !== idx) }));
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem', overflowY: 'auto' }}>
@@ -414,7 +472,29 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+        {/* Images */}
+        <div style={{ borderTop: '2px solid #f3f4f6', paddingTop: 16, marginTop: 4 }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Image size={13} /> Images ({(form.images || []).length}/{MAX_IMAGES})
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {(form.images || []).map((src, i) => (
+              <div key={i} style={{ position: 'relative' }}>
+                <img src={src} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '2px solid #e5e7eb', display: 'block' }} />
+                <button onClick={() => removeImage(i)} style={{ position: 'absolute', top: -7, right: -7, background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', fontSize: 14, lineHeight: '20px', textAlign: 'center', padding: 0 }}>×</button>
+              </div>
+            ))}
+            {(form.images || []).length < MAX_IMAGES && (
+              <label style={{ width: 80, height: 80, border: '2px dashed #d1d5db', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#9ca3af', gap: 4, flexShrink: 0 }}>
+                <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleImageUpload} />
+                <Image size={20} />
+                <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Add</span>
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button onClick={onClose} style={{ flex: 1, padding: '10px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
           <button onClick={onSave} style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
             {isEdit ? 'Save Changes' : 'Create Task'}
@@ -547,7 +627,7 @@ export default function App() {
 
   const openEdit = task => {
     setEdit(task);
-    setForm({ title: task.title || '', description: task.description || '', priority: task.priority || 'medium', dueDate: task.dueDate || '', status: task.status || 'backlog', category: task.category || '', assigneeName: task.assigneeName || '', assigneeEmail: task.assigneeEmail || '', reporterName: task.reporterName || '' });
+    setForm({ title: task.title || '', description: task.description || '', priority: task.priority || 'medium', dueDate: task.dueDate || '', status: task.status || 'backlog', category: task.category || '', assigneeName: task.assigneeName || '', assigneeEmail: task.assigneeEmail || '', reporterName: task.reporterName || '', images: task.images || [] });
     setModal(true);
   };
 
