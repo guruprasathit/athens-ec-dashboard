@@ -366,7 +366,7 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
         </select>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
+          <div style={{ gridColumn: isEdit ? 'auto' : '1 / -1' }}>
             <label style={lbl}>Priority</label>
             <select style={{ ...inp, marginBottom: 0 }} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
               <option value="low">Low</option>
@@ -375,14 +375,16 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
               <option value="critical">Critical</option>
             </select>
           </div>
-          <div>
-            <label style={lbl}>Status</label>
-            <select style={{ ...inp, marginBottom: 0 }} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-              <option value="backlog">Backlog</option>
-              <option value="in-progress">In Progress</option>
-              <option value="done">Done</option>
-            </select>
-          </div>
+          {isEdit && (
+            <div>
+              <label style={lbl}>Status</label>
+              <select style={{ ...inp, marginBottom: 0 }} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                <option value="backlog">Backlog</option>
+                <option value="in-progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div style={{ marginTop: 12 }}>
