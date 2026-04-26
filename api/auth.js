@@ -2,7 +2,7 @@
 import { get, set } from './_storage.js';
 
 const FALLBACK_USERS = {
-  admin: { password: process.env.ADMIN_PASSWORD || 'athens2024', role: 'admin', name: 'Admin' },
+  admin: { password: process.env.ADMIN_PASSWORD || 'athens2026', role: 'admin', name: 'Admin' },
 };
 
 export default async function handler(req, res) {

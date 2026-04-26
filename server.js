@@ -30,7 +30,7 @@ app.post('/api/auth', (req, res) => {
     return res.json({ success: true, user: { username: id, name, role: users[id].role } });
   }
   if (action === 'login') {
-    if (id === 'admin' && password === (process.env.ADMIN_PASSWORD || 'athens2024')) return res.json({ success: true, user: { username: id, name: 'Admin', role: 'admin' } });
+    if (id === 'admin' && password === (process.env.ADMIN_PASSWORD || 'athens2026')) return res.json({ success: true, user: { username: id, name: 'Admin', role: 'admin' } });
     const users = fileGet('users') || {};
     const u = users[id];
     if (!u || u.password !== password) return res.status(401).json({ error: 'Invalid username or password.' });
