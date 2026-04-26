@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Download, Calendar, Clock, CheckCircle2, Circle, Trash2, Edit2, Database, RefreshCw, Activity, User, Mail, X, AlertTriangle, MessageSquare, Send, Tag } from 'lucide-react';
+import { Plus, Download, Calendar, Clock, CheckCircle2, Circle, Trash2, Edit2, Database, RefreshCw, Activity, User, Mail, X, AlertTriangle, MessageSquare, Send, Tag, Search, Filter, XCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const API_URL = '/api';
@@ -458,6 +458,7 @@ export default function App() {
   const [logModal, setLogModal] = useState(false);
   const [edit, setEdit] = useState(null);
   const [form, setForm] = useState(BLANK_FORM);
+  const [filters, setFilters] = useState({ search: '', category: '', priority: '', assignee: '' });
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -696,10 +697,61 @@ export default function App() {
           </div>
         </div>
 
+        {/* ── Filter Bar ── */}
+        {(() => {
+          const assignees = [...new Set(tasks.map(t => t.assigneeName).filter(Boolean))].sort();
+          const activeCount = Object.values(filters).filter(Boolean).length;
+          const selStyle = { padding: '7px 10px', border: '2px solid #e5e7eb', borderRadius: 8, fontSize: '0.82rem', background: 'white', outline: 'none', cursor: 'pointer', color: '#374151' };
+          return (
+            <div style={{ background: 'white', borderRadius: 14, padding: '1rem 1.25rem', marginBottom: '1.25rem', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Filter size={16} style={{ color: '#6b7280', flexShrink: 0 }} />
+              <div style={{ position: 'relative', flex: '1 1 180px' }}>
+                <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                <input
+                  value={filters.search}
+                  onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+                  placeholder="Search tasks…"
+                  style={{ ...selStyle, width: '100%', paddingLeft: 28, boxSizing: 'border-box' }}
+                />
+              </div>
+              <select style={{ ...selStyle, flex: '1 1 140px' }} value={filters.category} onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}>
+                <option value="">All Categories</option>
+                {CATEGORIES.filter(c => c.value).map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+              <select style={{ ...selStyle, flex: '1 1 120px' }} value={filters.priority} onChange={e => setFilters(f => ({ ...f, priority: e.target.value }))}>
+                <option value="">All Priorities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+              <select style={{ ...selStyle, flex: '1 1 140px' }} value={filters.assignee} onChange={e => setFilters(f => ({ ...f, assignee: e.target.value }))}>
+                <option value="">All Assignees</option>
+                {assignees.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              {activeCount > 0 && (
+                <button
+                  onClick={() => setFilters({ search: '', category: '', priority: '', assignee: '' })}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: '#fef2f2', color: '#ef4444', border: '2px solid #fecaca', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.82rem', flexShrink: 0 }}
+                >
+                  <XCircle size={14} /> Clear ({activeCount})
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
         {/* ── Kanban Board ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px,1fr))', gap: '1.25rem' }}>
           {COLS.map(col => {
-            const colTasks = tasks.filter(t => t.status === col.id);
+            const allColTasks = tasks.filter(t => t.status === col.id);
+            const colTasks = allColTasks.filter(t => {
+              if (filters.search && !t.title.toLowerCase().includes(filters.search.toLowerCase()) && !(t.description || '').toLowerCase().includes(filters.search.toLowerCase()) && !t.id.toLowerCase().includes(filters.search.toLowerCase())) return false;
+              if (filters.category && t.category !== filters.category) return false;
+              if (filters.priority && t.priority !== filters.priority) return false;
+              if (filters.assignee && t.assigneeName !== filters.assignee) return false;
+              return true;
+            });
             const ColIcon = col.Icon;
             return (
               <div key={col.id} style={{ background: 'white', borderRadius: 16, padding: '1.25rem' }}>
@@ -708,10 +760,16 @@ export default function App() {
                     <ColIcon size={20} style={{ color: '#3b82f6' }} />
                     <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>{col.label}</span>
                   </div>
-                  <span style={{ background: '#3b82f6', color: 'white', padding: '2px 10px', borderRadius: 20, fontWeight: 700, fontSize: '0.82rem' }}>{colTasks.length}</span>
+                  <span style={{ background: '#3b82f6', color: 'white', padding: '2px 10px', borderRadius: 20, fontWeight: 700, fontSize: '0.82rem' }}>
+                    {colTasks.length}{colTasks.length !== allColTasks.length ? `/${allColTasks.length}` : ''}
+                  </span>
                 </div>
                 <div style={{ minHeight: 120 }}>
-                  {colTasks.length === 0 && <div style={{ textAlign: 'center', color: '#d1d5db', padding: '2rem 0', fontSize: '0.85rem' }}>No tasks here</div>}
+                  {colTasks.length === 0 && (
+                    <div style={{ textAlign: 'center', color: '#d1d5db', padding: '2rem 0', fontSize: '0.85rem' }}>
+                      {allColTasks.length > 0 ? '🔍 No tasks match filters' : 'No tasks here'}
+                    </div>
+                  )}
                   {colTasks.map(task => (
                     <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} />
                   ))}
