@@ -22,6 +22,14 @@ const BLANK_FORM = {
   status: 'backlog', assigneeName: '', assigneeEmail: '', reporterName: '',
 };
 
+// ── Task ID helper ─────────────────────────────────────────────────────────────
+
+async function fetchNextTaskId() {
+  const res = await fetch(`${API_URL}/counter`, { method: 'POST' });
+  const data = await res.json();
+  return data.taskId; // e.g. "CAAOA-0001"
+}
+
 // ── Email helpers ──────────────────────────────────────────────────────────────
 
 async function sendAssignEmail(taskId) {
@@ -159,8 +167,11 @@ function TaskCard({ task, user, onEdit, onDelete, onMove }) {
   const p = PRIORITY[task.priority] || PRIORITY.medium;
   return (
     <div style={{ background: 'white', borderRadius: 10, padding: '1rem', border: '1px solid #e5e7eb', borderLeft: `4px solid ${p.color}`, marginBottom: '0.75rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827', flex: 1 }}>{task.title}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '2px 6px', display: 'inline-block', marginBottom: 4, letterSpacing: '0.05em' }}>{task.id}</div>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>{task.title}</div>
+        </div>
         <div style={{ display: 'flex', gap: 4 }}>
           <button onClick={() => onEdit(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><Edit2 size={15} /></button>
           {user.role === 'admin' && <button onClick={() => onDelete(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><Trash2 size={15} /></button>}
@@ -373,10 +384,10 @@ export default function App() {
   const sampleTasks = () => {
     const d = o => { const x = new Date(); x.setDate(x.getDate() + o); return x.toISOString().split('T')[0]; };
     return [
-      { id: 1, title: 'Quarterly EC Review', description: 'Review Q2 financials', priority: 'high', dueDate: d(5), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', createdAt: new Date().toISOString(), createdBy: 'system' },
-      { id: 2, title: 'Update Member Notices', description: 'Send AGM notices to all members', priority: 'critical', dueDate: d(2), status: 'in-progress', reporterName: 'Admin', assigneeName: 'Guruprasath', assigneeEmail: '', startDate: d(0), startTime: new Date().toLocaleTimeString(), createdAt: new Date().toISOString(), createdBy: 'system' },
-      { id: 3, title: 'Prepare Budget Report', description: 'Annual budget presentation', priority: 'medium', dueDate: d(14), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', createdAt: new Date().toISOString(), createdBy: 'system' },
-      { id: 4, title: 'Vendor Invoice Check', description: 'Verify outstanding invoices', priority: 'low', dueDate: d(-2), status: 'done', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', completionDate: d(-1), completionTime: '14:30:00', createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0001', title: 'Quarterly EC Review', description: 'Review Q2 financials', priority: 'high', dueDate: d(5), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0002', title: 'Update Member Notices', description: 'Send AGM notices to all members', priority: 'critical', dueDate: d(2), status: 'in-progress', reporterName: 'Admin', assigneeName: 'Guruprasath', assigneeEmail: '', startDate: d(0), startTime: new Date().toLocaleTimeString(), createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0003', title: 'Prepare Budget Report', description: 'Annual budget presentation', priority: 'medium', dueDate: d(14), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0004', title: 'Vendor Invoice Check', description: 'Verify outstanding invoices', priority: 'low', dueDate: d(-2), status: 'done', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', completionDate: d(-1), completionTime: '14:30:00', createdAt: new Date().toISOString(), createdBy: 'system' },
     ];
   };
 
@@ -463,12 +474,12 @@ export default function App() {
       });
       updatedLogs = addLog('UPDATED', form.title, form.assigneeName ? `Assigned to ${form.assigneeName}` : '');
     } else {
-      taskId = Date.now();
+      taskId = await fetchNextTaskId();
       const newTask = { ...form, id: taskId, createdAt: now.toISOString(), createdBy: user.username, createdByName: user.name };
       if (form.status === 'in-progress') { newTask.startDate = now.toISOString().split('T')[0]; newTask.startTime = now.toLocaleTimeString(); }
       if (form.status === 'done') { newTask.completionDate = now.toISOString().split('T')[0]; newTask.completionTime = now.toLocaleTimeString(); }
       updatedTasks = [...tasks, newTask];
-      updatedLogs = addLog('CREATED', form.title, form.assigneeName ? `Assigned to ${form.assigneeName}` : `Priority: ${form.priority}`);
+      updatedLogs = addLog('CREATED', form.title, `${taskId}${form.assigneeName ? ` · Assigned to ${form.assigneeName}` : ` · Priority: ${form.priority}`}`);
     }
 
     setTasks(updatedTasks);
@@ -521,7 +532,7 @@ export default function App() {
   };
 
   const exportXLSX = () => {
-    const td = tasks.map(t => ({ Title: t.title, Description: t.description, Priority: t.priority, Status: t.status, 'Due Date': t.dueDate, Reporter: t.reporterName, Assignee: t.assigneeName, 'Assignee Email': t.assigneeEmail, 'Start Date': t.startDate, 'Completion Date': t.completionDate, 'Created By': t.createdByName }));
+    const td = tasks.map(t => ({ 'Task ID': t.id, Title: t.title, Description: t.description, Priority: t.priority, Status: t.status, 'Due Date': t.dueDate, Reporter: t.reporterName, Assignee: t.assigneeName, 'Assignee Email': t.assigneeEmail, 'Start Date': t.startDate, 'Completion Date': t.completionDate, 'Created By': t.createdByName }));
     const ld = logs.map(l => ({ Time: new Date(l.timestamp).toLocaleString(), User: l.userName, Action: l.action, Task: l.taskTitle, Details: l.details }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(td), 'Tasks');

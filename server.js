@@ -48,6 +48,17 @@ app.delete('/api/tasks', (req, res) => { fileDel('tasks'); res.json({ success: t
 app.get('/api/logs', (req, res) => res.json(fileGet('logs') || []));
 app.post('/api/logs', (req, res) => { fileSet('logs', req.body.logs); res.json({ success: true }); });
 
+// Counter
+app.get('/api/counter', (req, res) => {
+  const count = fileGet('taskCounter') || 0;
+  res.json({ count, next: `CAAOA-${String(count + 1).padStart(4, '0')}` });
+});
+app.post('/api/counter', (req, res) => {
+  const count = (fileGet('taskCounter') || 0) + 1;
+  fileSet('taskCounter', count);
+  res.json({ taskId: `CAAOA-${String(count).padStart(4, '0')}`, count });
+});
+
 // Notify (local stub)
 app.get('/api/notify', (req, res) => {
   const { action, taskId } = req.query;
