@@ -16,7 +16,7 @@ const CATEGORIES = [
   { value: 'revenue',  label: 'Revenue',                   color: '#059669', bg: '#d1fae5' },
   { value: 'security', label: 'Security',                  color: '#dc2626', bg: '#fee2e2' },
   { value: 'meeting',  label: 'Meeting',                   color: '#7c3aed', bg: '#ede9fe' },
-  { value: 'executive-committee', label: 'Executive Committee', color: '#1d4ed8', bg: '#dbeafe' },
+  { value: 'community-events', label: 'Community Events', color: '#0891b2', bg: '#cffafe' },
 ];
 
 const COLS = [
@@ -477,7 +477,7 @@ export default function App() {
       { id: 'CAAOA-0001', title: 'Quarterly EC Review', description: 'Review Q2 financials', priority: 'high', category: 'revenue', dueDate: d(5), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
       { id: 'CAAOA-0002', title: 'Update Member Notices', description: 'Send AGM notices to all members', priority: 'critical', category: 'meeting', dueDate: d(2), status: 'in-progress', reporterName: 'Admin', assigneeName: 'Guruprasath', assigneeEmail: '', startDate: d(0), startTime: new Date().toLocaleTimeString(), comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
       { id: 'CAAOA-0003', title: 'Prepare Budget Report', description: 'Annual budget presentation', priority: 'medium', category: 'revenue', dueDate: d(14), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
-      { id: 'CAAOA-0004', title: 'Vendor Invoice Check', description: 'Verify outstanding invoices', priority: 'low', category: 'executive-committee', dueDate: d(-2), status: 'done', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', completionDate: d(-1), completionTime: '14:30:00', comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0004', title: 'Vendor Invoice Check', description: 'Verify outstanding invoices', priority: 'low', category: 'community-events', dueDate: d(-2), status: 'done', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', completionDate: d(-1), completionTime: '14:30:00', comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
     ];
   };
 
