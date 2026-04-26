@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Download, Calendar, Clock, CheckCircle2, Circle, Trash2, Edit2, Database, RefreshCw, Activity, User, Mail, X, AlertTriangle } from 'lucide-react';
+import { Plus, Download, Calendar, Clock, CheckCircle2, Circle, Trash2, Edit2, Database, RefreshCw, Activity, User, Mail, X, AlertTriangle, MessageSquare, Send, Tag } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const API_URL = '/api';
@@ -11,36 +11,53 @@ const PRIORITY = {
   critical: { color: '#dc2626', bg: '#fee2e2' },
 };
 
+const CATEGORIES = [
+  { value: '',          label: 'Select category…',          color: '#6b7280', bg: '#f3f4f6' },
+  { value: 'revenue',  label: 'Revenue',                   color: '#059669', bg: '#d1fae5' },
+  { value: 'security', label: 'Security',                  color: '#dc2626', bg: '#fee2e2' },
+  { value: 'meeting',  label: 'Meeting',                   color: '#7c3aed', bg: '#ede9fe' },
+  { value: 'executive-committee', label: 'Executive Committee', color: '#1d4ed8', bg: '#dbeafe' },
+];
+
 const COLS = [
-  { id: 'backlog',     label: 'Backlog',      Icon: Circle },
-  { id: 'in-progress', label: 'In Progress',  Icon: Clock },
-  { id: 'done',        label: 'Done',         Icon: CheckCircle2 },
+  { id: 'backlog',      label: 'Backlog',     Icon: Circle },
+  { id: 'in-progress',  label: 'In Progress', Icon: Clock },
+  { id: 'done',         label: 'Done',        Icon: CheckCircle2 },
 ];
 
 const BLANK_FORM = {
   title: '', description: '', priority: 'medium', dueDate: '',
-  status: 'backlog', assigneeName: '', assigneeEmail: '', reporterName: '',
+  status: 'backlog', category: '',
+  assigneeName: '', assigneeEmail: '', reporterName: '',
 };
 
-// ── Task ID helper ─────────────────────────────────────────────────────────────
+const MAX_COMMENTS = 5;
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 async function fetchNextTaskId() {
   const res = await fetch(`${API_URL}/counter`, { method: 'POST' });
   const data = await res.json();
-  return data.taskId; // e.g. "CAAOA-0001"
+  return data.taskId;
 }
-
-// ── Email helpers ──────────────────────────────────────────────────────────────
 
 async function sendAssignEmail(taskId) {
-  try {
-    await fetch(`${API_URL}/notify?action=assign&taskId=${taskId}`);
-  } catch (e) {
-    console.error('Assignment email failed:', e);
-  }
+  try { await fetch(`${API_URL}/notify?action=assign&taskId=${taskId}`); } catch {}
 }
 
-// ── Login screen ───────────────────────────────────────────────────────────────
+function categoryMeta(value) {
+  return CATEGORIES.find(c => c.value === value) || CATEGORIES[0];
+}
+
+function timeAgo(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+// ── Login ──────────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }) {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -71,11 +88,8 @@ function LoginScreen({ onLogin }) {
       const data = await res.json();
       if (!res.ok) return setError(data.error || 'Something went wrong.');
       onLogin(data.user);
-    } catch {
-      setError('Connection error. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Connection error. Please try again.'); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -86,19 +100,15 @@ function LoginScreen({ onLogin }) {
         .lc{width:100%;max-width:400px;margin:20px;background:white;border-radius:16px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
         .lh{text-align:center;margin-bottom:32px;}
         .li{width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;}
-        .lt{font-size:22px;font-weight:700;color:#111827;}
-        .ls{font-size:13px;color:#6b7280;margin-top:4px;}
-        .lf{margin-bottom:16px;}
-        .lf label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;}
+        .lt{font-size:22px;font-weight:700;color:#111827;}.ls{font-size:13px;color:#6b7280;margin-top:4px;}
+        .lf{margin-bottom:16px;}.lf label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;}
         .lf input{width:100%;padding:10px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;transition:border-color .2s;}
-        .lf input:focus{border-color:#3b82f6;}
-        .pw{position:relative;}.pw input{padding-right:40px;}
+        .lf input:focus{border-color:#3b82f6;}.pw{position:relative;}.pw input{padding-right:40px;}
         .pt{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#9ca3af;}
         .eb{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#dc2626;}
         .sb{width:100%;padding:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;}
         .sb:disabled{opacity:.6;cursor:not-allowed;}
-        .sl{text-align:center;margin-top:16px;font-size:13px;color:#6b7280;}
-        .sl button{background:none;border:none;color:#3b82f6;font-weight:600;cursor:pointer;font-size:13px;}
+        .sl{text-align:center;margin-top:16px;font-size:13px;color:#6b7280;}.sl button{background:none;border:none;color:#3b82f6;font-weight:600;cursor:pointer;font-size:13px;}
       `}</style>
       <div className="lr">
         <div className="lc">
@@ -109,25 +119,21 @@ function LoginScreen({ onLogin }) {
           </div>
           {error && <div className="eb">{error}</div>}
           {isRegistering && (
-            <div className="lf">
-              <label>Full Name</label>
+            <div className="lf"><label>Full Name</label>
               <input type="text" placeholder="Your full name" value={fullName} onChange={e => { setFullName(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus />
             </div>
           )}
-          <div className="lf">
-            <label>Username</label>
+          <div className="lf"><label>Username</label>
             <input type="text" placeholder="Enter username" value={username} onChange={e => { setUsername(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus={!isRegistering} />
           </div>
-          <div className="lf">
-            <label>Password</label>
+          <div className="lf"><label>Password</label>
             <div className="pw">
               <input type={showPass ? 'text' : 'password'} placeholder="Enter password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} />
               <button type="button" className="pt" onClick={() => setShowPass(v => !v)}>{showPass ? '🙈' : '👁'}</button>
             </div>
           </div>
           {isRegistering && (
-            <div className="lf">
-              <label>Confirm Password</label>
+            <div className="lf"><label>Confirm Password</label>
               <input type={showPass ? 'text' : 'password'} placeholder="Confirm password" value={confirm} onChange={e => { setConfirm(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} />
             </div>
           )}
@@ -151,28 +157,100 @@ function DueBadge({ dueDate, status }) {
   const diff = Math.ceil((due - today) / 86400000);
   const overdue = diff < 0 && status !== 'done';
   const dueToday = diff === 0 && status !== 'done';
-  let label = '';
-  let bg = '#dbeafe'; let color = '#3b82f6'; let border = '#3b82f6';
-  if (overdue) { label = `⚠️ ${Math.abs(diff)}d overdue`; bg = '#fee2e2'; color = '#ef4444'; border = '#ef4444'; }
-  else if (dueToday) { label = '⏰ Due today!'; bg = '#fef3c7'; color = '#f59e0b'; border = '#f59e0b'; }
+  let label = '', bg = '#dbeafe', color = '#3b82f6', border = '#3b82f6';
+  if (overdue)       { label = `⚠️ ${Math.abs(diff)}d overdue`;  bg = '#fee2e2'; color = '#ef4444'; border = '#ef4444'; }
+  else if (dueToday) { label = '⏰ Due today!';                   bg = '#fef3c7'; color = '#f59e0b'; border = '#f59e0b'; }
   else if (diff === 1) { label = '📅 Due tomorrow'; }
-  else if (diff > 1) { label = `📅 ${diff}d remaining`; }
+  else if (diff > 1)   { label = `📅 ${diff}d remaining`; }
   if (!label) return null;
   return <div style={{ fontSize: '0.78rem', fontWeight: 700, padding: '4px 8px', borderRadius: 6, marginBottom: 8, background: bg, color, border: `2px solid ${border}` }}>{label}</div>;
 }
 
+// ── Comments section ───────────────────────────────────────────────────────────
+
+function CommentsSection({ task, user, onAddComment }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const comments = task.comments || [];
+  const atLimit = comments.length >= MAX_COMMENTS;
+
+  const submit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onAddComment(task.id, trimmed);
+    setText('');
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid #f3f4f6', marginTop: 10, paddingTop: 8 }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#6b7280', fontSize: '0.78rem', fontWeight: 600, padding: '2px 0', width: '100%' }}
+      >
+        <MessageSquare size={13} />
+        Comments ({comments.length}/{MAX_COMMENTS})
+        <span style={{ marginLeft: 'auto', fontSize: '0.72rem' }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          {comments.length === 0 && (
+            <div style={{ fontSize: '0.78rem', color: '#d1d5db', textAlign: 'center', padding: '8px 0' }}>No comments yet.</div>
+          )}
+          {comments.map(c => (
+            <div key={c.id} style={{ marginBottom: 8, padding: '8px 10px', background: '#f9fafb', borderRadius: 8, borderLeft: '3px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>{c.author}</span>
+                <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{timeAgo(c.timestamp)}</span>
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#4b5563', lineHeight: 1.4 }}>{c.text}</div>
+            </div>
+          ))}
+
+          {!atLimit ? (
+            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <input
+                value={text}
+                onChange={e => setText(e.target.value)}
+                onKeyPress={e => e.key === 'Enter' && submit()}
+                placeholder="Add a comment…"
+                style={{ flex: 1, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '0.82rem', outline: 'none', fontFamily: 'inherit' }}
+              />
+              <button
+                onClick={submit}
+                disabled={!text.trim()}
+                style={{ padding: '6px 10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: text.trim() ? 1 : 0.4 }}
+              >
+                <Send size={13} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center', padding: '4px 0' }}>
+              Maximum {MAX_COMMENTS} comments reached.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Task Card ──────────────────────────────────────────────────────────────────
 
-function TaskCard({ task, user, onEdit, onDelete, onMove }) {
+function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
   const p = PRIORITY[task.priority] || PRIORITY.medium;
+  const cat = categoryMeta(task.category);
+
   return (
     <div style={{ background: 'white', borderRadius: 10, padding: '1rem', border: '1px solid #e5e7eb', borderLeft: `4px solid ${p.color}`, marginBottom: '0.75rem' }}>
+
+      {/* Header row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '2px 6px', display: 'inline-block', marginBottom: 4, letterSpacing: '0.05em' }}>{task.id}</div>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>{task.title}</div>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           <button onClick={() => onEdit(task)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><Edit2 size={15} /></button>
           {user.role === 'admin' && <button onClick={() => onDelete(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}><Trash2 size={15} /></button>}
         </div>
@@ -180,32 +258,38 @@ function TaskCard({ task, user, onEdit, onDelete, onMove }) {
 
       {task.description && <div style={{ color: '#6b7280', fontSize: '0.85rem', marginBottom: 8 }}>{task.description}</div>}
 
+      {/* Badges row */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700, background: p.bg, color: p.color }}>{(task.priority || '').toUpperCase()}</span>
+        {task.category && (
+          <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700, background: cat.bg, color: cat.color, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Tag size={9} />{cat.label}
+          </span>
+        )}
       </div>
 
+      {/* Due date */}
       {task.dueDate && <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={11} />Due: {task.dueDate}</div>}
-
       <DueBadge dueDate={task.dueDate} status={task.status} />
 
+      {/* Timeline */}
       {task.startDate && (
         <div style={{ fontSize: '0.75rem', color: '#059669', padding: '4px 8px', background: '#f0fdf4', borderRadius: 6, marginBottom: 6, border: '1px solid #bbf7d0' }}>
           <Clock size={10} style={{ display: 'inline', marginRight: 4 }} />Started: {task.startDate}{task.startTime ? ` at ${task.startTime}` : ''}
         </div>
       )}
-
       {task.completionDate && (
         <div style={{ fontSize: '0.75rem', color: '#059669', padding: '4px 8px', background: '#f0fdf4', borderRadius: 6, marginBottom: 6, border: '1px solid #bbf7d0' }}>
           <CheckCircle2 size={10} style={{ display: 'inline', marginRight: 4 }} />Completed: {task.completionDate}{task.completionTime ? ` at ${task.completionTime}` : ''}
         </div>
       )}
 
+      {/* People */}
       {task.reporterName && (
         <div style={{ fontSize: '0.75rem', color: '#6b7280', padding: '4px 8px', background: '#f9fafb', borderRadius: 6, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
           <User size={10} />Reporter: <strong>{task.reporterName}</strong>
         </div>
       )}
-
       {task.assigneeName && (
         <div style={{ fontSize: '0.75rem', color: '#1d4ed8', padding: '4px 8px', background: '#eff6ff', borderRadius: 6, marginBottom: 8, border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
           <User size={10} />Assignee: <strong>{task.assigneeName}</strong>
@@ -213,6 +297,7 @@ function TaskCard({ task, user, onEdit, onDelete, onMove }) {
         </div>
       )}
 
+      {/* Move buttons */}
       {task.status !== 'done' && (
         <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
           {task.status === 'backlog' && (
@@ -229,6 +314,9 @@ function TaskCard({ task, user, onEdit, onDelete, onMove }) {
       {task.status === 'done' && (
         <button onClick={() => onMove(task.id, 'in-progress')} style={{ width: '100%', padding: '6px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem', marginTop: 4 }}>Reopen</button>
       )}
+
+      {/* Comments */}
+      <CommentsSection task={task} user={user} onAddComment={onAddComment} />
     </div>
   );
 }
@@ -252,6 +340,12 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
 
         <label style={lbl}>Description</label>
         <textarea style={{ ...inp, resize: 'vertical' }} rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description" />
+
+        {/* Category */}
+        <label style={lbl}>Category</label>
+        <select style={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
@@ -282,7 +376,6 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
           <div style={{ fontSize: '12px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
             <User size={13} /> People
           </div>
-
           <label style={lbl}>Reporter Name</label>
           <input style={inp} value={form.reporterName} onChange={e => setForm(f => ({ ...f, reporterName: e.target.value }))} placeholder="Reported by" />
 
@@ -315,7 +408,7 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
 // ── Log Modal ──────────────────────────────────────────────────────────────────
 
 function LogModal({ logs, onClose }) {
-  const colors = { CREATED: '#10b981', UPDATED: '#3b82f6', DELETED: '#ef4444', COMPLETED: '#059669', MOVED: '#f59e0b', LOGIN: '#7c3aed', LOGOUT: '#6b7280', EXPORTED: '#0284c7', SYSTEM: '#6b7280', REGISTERED: '#8b5cf6', ASSIGNED: '#3b82f6' };
+  const colors = { CREATED: '#10b981', UPDATED: '#3b82f6', DELETED: '#ef4444', COMPLETED: '#059669', MOVED: '#f59e0b', LOGIN: '#7c3aed', LOGOUT: '#6b7280', EXPORTED: '#0284c7', SYSTEM: '#6b7280', REGISTERED: '#8b5cf6', COMMENTED: '#06b6d4' };
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
       <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 680, maxHeight: '80vh', overflow: 'auto', padding: '2rem' }}>
@@ -357,12 +450,9 @@ export default function App() {
   const loadData = async (isInitial = false) => {
     try {
       setStatus('loading');
-      const [tasksRes, logsRes] = await Promise.all([
-        fetch(`${API_URL}/tasks`),
-        fetch(`${API_URL}/logs`),
-      ]);
-      const tasksData = await tasksRes.json();
-      const logsData = await logsRes.json();
+      const [tr, lr] = await Promise.all([fetch(`${API_URL}/tasks`), fetch(`${API_URL}/logs`)]);
+      const tasksData = await tr.json();
+      const logsData  = await lr.json();
       if (Array.isArray(tasksData) && (tasksData.length > 0 || !isInitial)) setTasks(tasksData);
       else if (isInitial) setTasks(sampleTasks());
       if (Array.isArray(logsData) && logsData.length > 0) setLogs(logsData);
@@ -384,24 +474,22 @@ export default function App() {
   const sampleTasks = () => {
     const d = o => { const x = new Date(); x.setDate(x.getDate() + o); return x.toISOString().split('T')[0]; };
     return [
-      { id: 'CAAOA-0001', title: 'Quarterly EC Review', description: 'Review Q2 financials', priority: 'high', dueDate: d(5), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', createdAt: new Date().toISOString(), createdBy: 'system' },
-      { id: 'CAAOA-0002', title: 'Update Member Notices', description: 'Send AGM notices to all members', priority: 'critical', dueDate: d(2), status: 'in-progress', reporterName: 'Admin', assigneeName: 'Guruprasath', assigneeEmail: '', startDate: d(0), startTime: new Date().toLocaleTimeString(), createdAt: new Date().toISOString(), createdBy: 'system' },
-      { id: 'CAAOA-0003', title: 'Prepare Budget Report', description: 'Annual budget presentation', priority: 'medium', dueDate: d(14), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', createdAt: new Date().toISOString(), createdBy: 'system' },
-      { id: 'CAAOA-0004', title: 'Vendor Invoice Check', description: 'Verify outstanding invoices', priority: 'low', dueDate: d(-2), status: 'done', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', completionDate: d(-1), completionTime: '14:30:00', createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0001', title: 'Quarterly EC Review', description: 'Review Q2 financials', priority: 'high', category: 'revenue', dueDate: d(5), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0002', title: 'Update Member Notices', description: 'Send AGM notices to all members', priority: 'critical', category: 'meeting', dueDate: d(2), status: 'in-progress', reporterName: 'Admin', assigneeName: 'Guruprasath', assigneeEmail: '', startDate: d(0), startTime: new Date().toLocaleTimeString(), comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0003', title: 'Prepare Budget Report', description: 'Annual budget presentation', priority: 'medium', category: 'revenue', dueDate: d(14), status: 'backlog', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
+      { id: 'CAAOA-0004', title: 'Vendor Invoice Check', description: 'Verify outstanding invoices', priority: 'low', category: 'executive-committee', dueDate: d(-2), status: 'done', reporterName: 'Admin', assigneeName: '', assigneeEmail: '', completionDate: d(-1), completionTime: '14:30:00', comments: [], createdAt: new Date().toISOString(), createdBy: 'system' },
     ];
   };
 
   // ── API helpers ──────────────────────────────────────────────────────────────
 
-  const saveTasks = async (t) => {
+  const saveTasks = async t => {
     setStatus('syncing');
-    try {
-      await fetch(`${API_URL}/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: t }) });
-      setStatus('ready');
-    } catch { setStatus('error'); }
+    try { await fetch(`${API_URL}/tasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tasks: t }) }); setStatus('ready'); }
+    catch { setStatus('error'); }
   };
 
-  const saveLogs = async (l) => {
+  const saveLogs = async l => {
     try { await fetch(`${API_URL}/logs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logs: l }) }); } catch {}
   };
 
@@ -414,23 +502,19 @@ export default function App() {
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
 
-  const handleLogin = async (loggedInUser) => {
+  const handleLogin = async loggedInUser => {
     setUser(loggedInUser);
     try {
-      const logsRes = await fetch(`${API_URL}/logs`);
-      const existingLogs = await logsRes.json() || [];
-      const loginLog = { id: Date.now(), timestamp: new Date().toISOString(), user: loggedInUser.username, userName: loggedInUser.name, action: 'LOGIN', taskTitle: '', details: 'User logged in' };
-      const updated = [loginLog, ...existingLogs];
+      const lr = await fetch(`${API_URL}/logs`);
+      const existing = await lr.json() || [];
+      const entry = { id: Date.now(), timestamp: new Date().toISOString(), user: loggedInUser.username, userName: loggedInUser.name, action: 'LOGIN', taskTitle: '', details: 'User logged in' };
+      const updated = [entry, ...existing];
       setLogs(updated);
       await saveLogs(updated);
     } catch {}
   };
 
-  const logout = () => {
-    const l = addLog('LOGOUT', '', 'User logged out');
-    saveLogs(l);
-    setTimeout(() => { setUser(null); setTasks([]); setLogs([]); }, 300);
-  };
+  const logout = () => { const l = addLog('LOGOUT', '', 'User logged out'); saveLogs(l); setTimeout(() => { setUser(null); setTasks([]); setLogs([]); }, 300); };
 
   // ── Task CRUD ─────────────────────────────────────────────────────────────────
 
@@ -440,18 +524,9 @@ export default function App() {
     setModal(true);
   };
 
-  const openEdit = (task) => {
+  const openEdit = task => {
     setEdit(task);
-    setForm({
-      title: task.title || '',
-      description: task.description || '',
-      priority: task.priority || 'medium',
-      dueDate: task.dueDate || '',
-      status: task.status || 'backlog',
-      assigneeName: task.assigneeName || '',
-      assigneeEmail: task.assigneeEmail || '',
-      reporterName: task.reporterName || '',
-    });
+    setForm({ title: task.title || '', description: task.description || '', priority: task.priority || 'medium', dueDate: task.dueDate || '', status: task.status || 'backlog', category: task.category || '', assigneeName: task.assigneeName || '', assigneeEmail: task.assigneeEmail || '', reporterName: task.reporterName || '' });
     setModal(true);
   };
 
@@ -467,7 +542,7 @@ export default function App() {
       taskId = edit.id;
       updatedTasks = tasks.map(t => {
         if (t.id !== taskId) return t;
-        const n = { ...t, ...form, id: taskId, lastModifiedBy: user.username, lastModifiedAt: now.toISOString() };
+        const n = { ...t, ...form, id: taskId, comments: t.comments || [], lastModifiedBy: user.username, lastModifiedAt: now.toISOString() };
         if (form.status === 'in-progress' && !t.startDate) { n.startDate = now.toISOString().split('T')[0]; n.startTime = now.toLocaleTimeString(); }
         if (form.status === 'done' && !t.completionDate) { n.completionDate = now.toISOString().split('T')[0]; n.completionTime = now.toLocaleTimeString(); }
         return n;
@@ -475,7 +550,7 @@ export default function App() {
       updatedLogs = addLog('UPDATED', form.title, form.assigneeName ? `Assigned to ${form.assigneeName}` : '');
     } else {
       taskId = await fetchNextTaskId();
-      const newTask = { ...form, id: taskId, createdAt: now.toISOString(), createdBy: user.username, createdByName: user.name };
+      const newTask = { ...form, id: taskId, comments: [], createdAt: now.toISOString(), createdBy: user.username, createdByName: user.name };
       if (form.status === 'in-progress') { newTask.startDate = now.toISOString().split('T')[0]; newTask.startTime = now.toLocaleTimeString(); }
       if (form.status === 'done') { newTask.completionDate = now.toISOString().split('T')[0]; newTask.completionTime = now.toLocaleTimeString(); }
       updatedTasks = [...tasks, newTask];
@@ -485,16 +560,11 @@ export default function App() {
     setTasks(updatedTasks);
     await saveTasks(updatedTasks);
     await saveLogs(updatedLogs);
-
-    // Send assignment email if assignee email is new or changed
-    if (form.assigneeEmail && form.assigneeEmail !== prevAssigneeEmail) {
-      sendAssignEmail(taskId);
-    }
-
+    if (form.assigneeEmail && form.assigneeEmail !== prevAssigneeEmail) sendAssignEmail(taskId);
     setModal(false);
   };
 
-  const deleteTask = async (id) => {
+  const deleteTask = async id => {
     if (user.role !== 'admin') return alert('Only admins can delete tasks.');
     const task = tasks.find(t => t.id === id);
     if (!task || !confirm(`Delete "${task.title}"?`)) return;
@@ -522,6 +592,19 @@ export default function App() {
     await saveLogs(l);
   };
 
+  const addComment = async (taskId, text) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const comments = task.comments || [];
+    if (comments.length >= MAX_COMMENTS) return;
+    const comment = { id: Date.now(), author: user.name, text, timestamp: new Date().toISOString() };
+    const updated = tasks.map(t => t.id === taskId ? { ...t, comments: [...comments, comment] } : t);
+    const l = addLog('COMMENTED', task.title, `"${text.substring(0, 60)}${text.length > 60 ? '…' : ''}"`);
+    setTasks(updated);
+    await saveTasks(updated);
+    await saveLogs(l);
+  };
+
   const clearAll = async () => {
     if (user.role !== 'admin') return alert('Only admins can clear all tasks.');
     if (!confirm('Delete ALL tasks?')) return;
@@ -532,7 +615,7 @@ export default function App() {
   };
 
   const exportXLSX = () => {
-    const td = tasks.map(t => ({ 'Task ID': t.id, Title: t.title, Description: t.description, Priority: t.priority, Status: t.status, 'Due Date': t.dueDate, Reporter: t.reporterName, Assignee: t.assigneeName, 'Assignee Email': t.assigneeEmail, 'Start Date': t.startDate, 'Completion Date': t.completionDate, 'Created By': t.createdByName }));
+    const td = tasks.map(t => ({ 'Task ID': t.id, Title: t.title, Description: t.description, Category: categoryMeta(t.category).label, Priority: t.priority, Status: t.status, 'Due Date': t.dueDate, Reporter: t.reporterName, Assignee: t.assigneeName, 'Assignee Email': t.assigneeEmail, 'Start Date': t.startDate, 'Completion Date': t.completionDate, 'Comments': (t.comments || []).map(c => `${c.author}: ${c.text}`).join(' | '), 'Created By': t.createdByName }));
     const ld = logs.map(l => ({ Time: new Date(l.timestamp).toLocaleString(), User: l.userName, Action: l.action, Task: l.taskTitle, Details: l.details }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(td), 'Tasks');
@@ -545,9 +628,9 @@ export default function App() {
   // ── Stats ────────────────────────────────────────────────────────────────────
 
   const stats = {
-    total: tasks.length,
-    overdue: tasks.filter(t => t.dueDate && new Date(t.dueDate + 'T00:00:00') < new Date().setHours(0, 0, 0, 0) && t.status !== 'done').length,
-    done: tasks.filter(t => t.status === 'done').length,
+    total:   tasks.length,
+    overdue: tasks.filter(t => t.dueDate && new Date(t.dueDate + 'T00:00:00') < new Date().setHours(0,0,0,0) && t.status !== 'done').length,
+    done:    tasks.filter(t => t.status === 'done').length,
     assigned: tasks.filter(t => t.assigneeEmail).length,
   };
 
@@ -555,8 +638,7 @@ export default function App() {
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
-  const statusColors = { ready: { bg: '#d1fae5', color: '#10b981' }, syncing: { bg: '#fef3c7', color: '#f59e0b' }, loading: { bg: '#dbeafe', color: '#3b82f6' }, error: { bg: '#fee2e2', color: '#ef4444' } };
-  const sc = statusColors[status] || statusColors.ready;
+  const sc = { ready: { bg: '#d1fae5', color: '#10b981' }, syncing: { bg: '#fef3c7', color: '#f59e0b' }, loading: { bg: '#dbeafe', color: '#3b82f6' }, error: { bg: '#fee2e2', color: '#ef4444' } }[status] || { bg: '#d1fae5', color: '#10b981' };
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#1e3a5f 0%,#0f2342 100%)', padding: '1.5rem', fontFamily: 'system-ui,sans-serif' }}>
@@ -574,9 +656,7 @@ export default function App() {
                 <User size={14} />{user.name}
                 {user.role === 'admin' && <span style={{ background: '#fbbf24', color: '#92400e', fontSize: '0.65rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4 }}>ADMIN</span>}
               </div>
-              <div style={{ padding: '6px 12px', background: sc.bg, color: sc.color, borderRadius: 8, fontWeight: 600, fontSize: '0.82rem', display: 'flex', gap: 4, alignItems: 'center' }}>
-                <Database size={13} />{status}
-              </div>
+              <div style={{ padding: '6px 12px', background: sc.bg, color: sc.color, borderRadius: 8, fontWeight: 600, fontSize: '0.82rem', display: 'flex', gap: 4, alignItems: 'center' }}><Database size={13} />{status}</div>
               <button onClick={() => setLogModal(true)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Activity size={14} />Log</button>
               <button onClick={() => loadData(false)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><RefreshCw size={14} />Refresh</button>
               <button onClick={exportXLSX} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Download size={14} />Export</button>
@@ -589,9 +669,9 @@ export default function App() {
           {/* ── Stats ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 12, paddingTop: '1rem', borderTop: '2px solid #f3f4f6' }}>
             {[
-              { label: 'Total', value: stats.total, color: '#3b82f6' },
-              { label: 'Overdue', value: stats.overdue, color: '#ef4444', icon: stats.overdue > 0 ? <AlertTriangle size={14} /> : null },
-              { label: 'Done', value: stats.done, color: '#10b981' },
+              { label: 'Total',    value: stats.total,    color: '#3b82f6' },
+              { label: 'Overdue',  value: stats.overdue,  color: '#ef4444', icon: stats.overdue > 0 ? <AlertTriangle size={14} /> : null },
+              { label: 'Done',     value: stats.done,     color: '#10b981' },
               { label: 'Assigned', value: stats.assigned, color: '#7c3aed' },
             ].map(s => (
               <div key={s.label} style={{ padding: '0.875rem 1rem', background: '#f9fafb', borderRadius: 10, textAlign: 'center' }}>
@@ -616,27 +696,13 @@ export default function App() {
                   </div>
                   <span style={{ background: '#3b82f6', color: 'white', padding: '2px 10px', borderRadius: 20, fontWeight: 700, fontSize: '0.82rem' }}>{colTasks.length}</span>
                 </div>
-
                 <div style={{ minHeight: 120 }}>
-                  {colTasks.length === 0 && (
-                    <div style={{ textAlign: 'center', color: '#d1d5db', padding: '2rem 0', fontSize: '0.85rem' }}>No tasks here</div>
-                  )}
+                  {colTasks.length === 0 && <div style={{ textAlign: 'center', color: '#d1d5db', padding: '2rem 0', fontSize: '0.85rem' }}>No tasks here</div>}
                   {colTasks.map(task => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      user={user}
-                      onEdit={openEdit}
-                      onDelete={deleteTask}
-                      onMove={moveTask}
-                    />
+                    <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} />
                   ))}
                 </div>
-
-                <button
-                  onClick={() => openNew(col.id)}
-                  style={{ width: '100%', padding: '8px', border: '2px dashed #d1d5db', background: 'transparent', borderRadius: 8, color: '#9ca3af', fontWeight: 600, cursor: 'pointer', fontSize: '0.83rem', marginTop: 4 }}
-                >
+                <button onClick={() => openNew(col.id)} style={{ width: '100%', padding: '8px', border: '2px dashed #d1d5db', background: 'transparent', borderRadius: 8, color: '#9ca3af', fontWeight: 600, cursor: 'pointer', fontSize: '0.83rem', marginTop: 4 }}>
                   + Add to {col.label}
                 </button>
               </div>
@@ -645,16 +711,7 @@ export default function App() {
         </div>
       </div>
 
-      {modal && (
-        <TaskModal
-          form={form}
-          setForm={setForm}
-          onSave={saveTask}
-          onClose={() => setModal(false)}
-          isEdit={!!edit}
-        />
-      )}
-
+      {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} />}
       {logModal && <LogModal logs={logs} onClose={() => setLogModal(false)} />}
     </div>
   );
