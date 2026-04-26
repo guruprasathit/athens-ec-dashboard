@@ -34,6 +34,7 @@ const CATEGORIES = [
   { value: 'mygate',           label: 'Mygate',                  color: '#1d4ed8', bg: '#dbeafe' },
   { value: 'ev-carwash',       label: 'EV & Carwash Bay',        color: '#15803d', bg: '#dcfce7' },
   { value: 'vendors',          label: 'Vendors',                 color: '#92400e', bg: '#fef3c7' },
+  { value: 'association',      label: 'Association',             color: '#1e3a5f', bg: '#dbeafe' },
 ];
 
 const COLS = [
