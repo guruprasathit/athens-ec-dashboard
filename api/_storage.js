@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from '
 import { join } from 'path';
 
 // ── File storage (local dev) ───────────────────────────────────────────────────
-const DATA_DIR = join(process.cwd(), 'data');
+const DATA_DIR = process.env.VERCEL ? '/tmp/athens-ec-data' : join(process.cwd(), 'data');
 if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
 
 function fileGet(key) {
