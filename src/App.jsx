@@ -25,6 +25,12 @@ const CATEGORIES = [
   { value: 'parking',            label: 'Parking',                 color: '#b45309', bg: '#fef3c7' },
   { value: 'lifts',              label: 'Lifts',                   color: '#be185d', bg: '#fce7f3' },
   { value: 'cams',              label: 'CAMS',                    color: '#475569', bg: '#f1f5f9' },
+  { value: 'clubhouse',        label: 'Clubhouse',               color: '#b45309', bg: '#fef3c7' },
+  { value: 'light',            label: 'Light',                   color: '#a16207', bg: '#fefce8' },
+  { value: 'acs',              label: "AC's",                    color: '#0369a1', bg: '#e0f2fe' },
+  { value: 'rules-regulations',label: 'Rules and Regulations',   color: '#7c2d12', bg: '#ffedd5' },
+  { value: 'mygate',           label: 'Mygate',                  color: '#1d4ed8', bg: '#dbeafe' },
+  { value: 'ev-carwash',       label: 'EV & Carwash Bay',        color: '#15803d', bg: '#dcfce7' },
 ];
 
 const COLS = [
