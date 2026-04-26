@@ -102,6 +102,11 @@ function timeAgo(iso) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function formatDateTime(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 // ── Login ──────────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }) {
@@ -314,21 +319,26 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
         )}
       </div>
 
-      {/* Due date */}
-      {task.dueDate && <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={11} />Due: {task.dueDate}</div>}
       <DueBadge dueDate={task.dueDate} status={task.status} />
 
       {/* Timeline */}
-      {task.startDate && (
-        <div style={{ fontSize: '0.75rem', color: '#059669', padding: '4px 8px', background: '#f0fdf4', borderRadius: 6, marginBottom: 6, border: '1px solid #bbf7d0' }}>
-          <Clock size={10} style={{ display: 'inline', marginRight: 4 }} />Started: {task.startDate}{task.startTime ? ` at ${task.startTime}` : ''}
-        </div>
-      )}
-      {task.completionDate && (
-        <div style={{ fontSize: '0.75rem', color: '#059669', padding: '4px 8px', background: '#f0fdf4', borderRadius: 6, marginBottom: 6, border: '1px solid #bbf7d0' }}>
-          <CheckCircle2 size={10} style={{ display: 'inline', marginRight: 4 }} />Completed: {task.completionDate}{task.completionTime ? ` at ${task.completionTime}` : ''}
-        </div>
-      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 6 }}>
+        {task.dueDate && (
+          <div style={{ fontSize: '0.75rem', color: '#6b7280', padding: '4px 8px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Calendar size={10} /><strong>Due:</strong> {new Date(task.dueDate + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </div>
+        )}
+        {(task.startedAt || task.startDate) && (
+          <div style={{ fontSize: '0.75rem', color: '#059669', padding: '4px 8px', background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Clock size={10} /><strong>Started:</strong> {task.startedAt ? formatDateTime(task.startedAt) : `${task.startDate}${task.startTime ? ` at ${task.startTime}` : ''}`}
+          </div>
+        )}
+        {(task.completedAt || task.completionDate) && (
+          <div style={{ fontSize: '0.75rem', color: '#1d4ed8', padding: '4px 8px', background: '#eff6ff', borderRadius: 6, border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <CheckCircle2 size={10} /><strong>Completed:</strong> {task.completedAt ? formatDateTime(task.completedAt) : `${task.completionDate}${task.completionTime ? ` at ${task.completionTime}` : ''}`}
+          </div>
+        )}
+      </div>
 
       {/* People */}
       {task.reporterName && (
@@ -644,8 +654,9 @@ export default function App() {
       updatedTasks = tasks.map(t => {
         if (t.id !== taskId) return t;
         const n = { ...t, ...form, id: taskId, comments: t.comments || [], lastModifiedBy: user.username, lastModifiedAt: now.toISOString() };
-        if (form.status === 'in-progress' && !t.startDate) { n.startDate = now.toISOString().split('T')[0]; n.startTime = now.toLocaleTimeString(); }
-        if (form.status === 'done' && !t.completionDate) { n.completionDate = now.toISOString().split('T')[0]; n.completionTime = now.toLocaleTimeString(); }
+        if (form.status === 'in-progress' && !t.startedAt) { n.startedAt = now.toISOString(); }
+        if (form.status === 'done' && !t.completedAt) { n.completedAt = now.toISOString(); }
+        if (form.status !== 'done') { n.completedAt = null; }
         return n;
       });
       updatedLogs = addLog('UPDATED', form.title, form.assigneeName ? `Assigned to ${form.assigneeName}` : '');
@@ -683,8 +694,9 @@ export default function App() {
     const updated = tasks.map(t => {
       if (t.id !== id) return t;
       const n = { ...t, status: newStatus };
-      if (newStatus === 'in-progress' && !t.startDate) { n.startDate = now.toISOString().split('T')[0]; n.startTime = now.toLocaleTimeString(); }
-      if (newStatus === 'done') { n.completionDate = now.toISOString().split('T')[0]; n.completionTime = now.toLocaleTimeString(); }
+      if (newStatus === 'in-progress' && !t.startedAt) { n.startedAt = now.toISOString(); }
+      if (newStatus === 'done') { n.completedAt = now.toISOString(); }
+      if (newStatus === 'backlog' || newStatus === 'in-progress') { n.completedAt = null; }
       return n;
     });
     const l = addLog(newStatus === 'done' ? 'COMPLETED' : 'MOVED', task.title, `→ ${newStatus}`);
