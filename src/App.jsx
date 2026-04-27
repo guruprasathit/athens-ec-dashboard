@@ -111,8 +111,9 @@ function formatDateTime(iso) {
 
 function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'forgot'
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
+  const [communityRole, setCommunityRole] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -120,11 +121,11 @@ function LoginScreen({ onLogin }) {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const reset = (newMode) => { setMode(newMode); setError(''); setSuccess(''); setPassword(''); setConfirm(''); };
+  const reset = (newMode) => { setMode(newMode); setError(''); setSuccess(''); setPassword(''); setConfirm(''); setCommunityRole(''); };
 
   const submit = async () => {
     setError(''); setSuccess('');
-    if (!username.trim()) return setError('Please enter your username.');
+    if (!email.trim()) return setError('Please enter your email address.');
 
     if (mode === 'forgot') {
       if (!password.trim()) return setError('Please enter a new password.');
@@ -135,7 +136,7 @@ function LoginScreen({ onLogin }) {
         const res = await fetch(`${API_URL}/auth`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'reset-password', username: username.toLowerCase().trim(), newPassword: password }),
+          body: JSON.stringify({ action: 'reset-password', username: email.toLowerCase().trim(), newPassword: password }),
         });
         const data = await res.json();
         if (!res.ok) return setError(data.error || 'Something went wrong.');
@@ -149,6 +150,8 @@ function LoginScreen({ onLogin }) {
     if (!password.trim()) return setError('Please enter your password.');
     if (mode === 'register') {
       if (!fullName.trim()) return setError('Please enter your full name.');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('Please enter a valid email address.');
+      if (!communityRole) return setError('Please select your role.');
       if (password.length < 6) return setError('Password must be at least 6 characters.');
       if (password !== confirm) return setError('Passwords do not match.');
     }
@@ -157,7 +160,7 @@ function LoginScreen({ onLogin }) {
       const res = await fetch(`${API_URL}/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: mode === 'register' ? 'register' : 'login', username: username.toLowerCase().trim(), name: fullName.trim(), password }),
+        body: JSON.stringify({ action: mode === 'register' ? 'register' : 'login', username: email.toLowerCase().trim(), name: fullName.trim(), password, communityRole }),
       });
       const data = await res.json();
       if (!res.ok) return setError(data.error || 'Something went wrong.');
@@ -165,6 +168,8 @@ function LoginScreen({ onLogin }) {
     } catch { setError('Connection error. Please try again.'); }
     finally { setLoading(false); }
   };
+
+  const sel = { width: '100%', padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: 8, fontSize: '14px', outline: 'none', marginBottom: 0, background: 'white', color: '#111827' };
 
   return (
     <>
@@ -176,8 +181,8 @@ function LoginScreen({ onLogin }) {
         .li{width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;}
         .lt{font-size:22px;font-weight:700;color:#111827;}.ls{font-size:13px;color:#6b7280;margin-top:4px;}
         .lf{margin-bottom:16px;}.lf label{display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;}
-        .lf input{width:100%;padding:10px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;transition:border-color .2s;}
-        .lf input:focus{border-color:#3b82f6;}.pw{position:relative;}.pw input{padding-right:40px;}
+        .lf input,.lf select{width:100%;padding:10px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;outline:none;transition:border-color .2s;box-sizing:border-box;}
+        .lf input:focus,.lf select:focus{border-color:#3b82f6;}.pw{position:relative;}.pw input{padding-right:40px;}
         .pt{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#9ca3af;}
         .eb{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#dc2626;}
         .ok{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#15803d;}
@@ -197,12 +202,21 @@ function LoginScreen({ onLogin }) {
           {success && <div className="ok">{success}</div>}
           {mode === 'register' && (
             <div className="lf"><label>Full Name</label>
-              <input type="text" placeholder="Your full name" value={fullName} onChange={e => { setFullName(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus />
+              <input type="text" placeholder="Your full name" value={fullName} onChange={e => { setFullName(e.target.value); setError(''); }} autoFocus />
             </div>
           )}
-          <div className="lf"><label>Username</label>
-            <input type="text" placeholder="Enter username" value={username} onChange={e => { setUsername(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus={mode !== 'register'} />
+          <div className="lf"><label>Email ID</label>
+            <input type="email" placeholder="yourname@email.com" value={email} onChange={e => { setEmail(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus={mode !== 'register'} />
           </div>
+          {mode === 'register' && (
+            <div className="lf"><label>Role</label>
+              <select value={communityRole} onChange={e => { setCommunityRole(e.target.value); setError(''); }} style={sel}>
+                <option value="">Select your role…</option>
+                <option value="EC Member">EC Member</option>
+                <option value="Sub-committee Member">Sub-committee Member</option>
+              </select>
+            </div>
+          )}
           <div className="lf"><label>{mode === 'forgot' ? 'New Password' : 'Password'}</label>
             <div className="pw">
               <input type={showPass ? 'text' : 'password'} placeholder={mode === 'forgot' ? 'Enter new password' : 'Enter password'} value={password} onChange={e => { setPassword(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} />
@@ -434,7 +448,7 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
 
 // ── Task Modal ─────────────────────────────────────────────────────────────────
 
-function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
+function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [] }) {
   const inp = { width: '100%', padding: '9px 12px', border: '2px solid #e5e7eb', borderRadius: 8, fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12, outline: 'none' };
   const lbl = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' };
 
@@ -504,14 +518,37 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit }) {
           <label style={lbl}>Reporter Name</label>
           <input style={inp} value={form.reporterName} onChange={e => setForm(f => ({ ...f, reporterName: e.target.value }))} placeholder="Reported by" />
 
-          <label style={lbl}>Assignee Name</label>
-          <input style={inp} value={form.assigneeName} onChange={e => setForm(f => ({ ...f, assigneeName: e.target.value }))} placeholder="Assigned to (name)" />
-
-          <label style={lbl}>Assignee Email</label>
-          <div style={{ position: 'relative', marginBottom: 12 }}>
-            <Mail size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-            <input style={{ ...inp, paddingLeft: 32, marginBottom: 0 }} type="email" value={form.assigneeEmail} onChange={e => setForm(f => ({ ...f, assigneeEmail: e.target.value }))} placeholder="assignee@email.com" />
-          </div>
+          <label style={lbl}>Assign To</label>
+          {members.length > 0 ? (
+            <select
+              style={{ ...inp, color: form.assigneeEmail ? '#111827' : '#9ca3af' }}
+              value={form.assigneeEmail}
+              onChange={e => {
+                const selected = members.find(m => m.username === e.target.value);
+                setForm(f => ({ ...f, assigneeEmail: selected ? selected.username : '', assigneeName: selected ? selected.name : '' }));
+              }}
+            >
+              <option value="">— Unassigned —</option>
+              {['EC Member', 'Sub-committee Member'].map(roleGroup => {
+                const group = members.filter(m => m.communityRole === roleGroup);
+                if (!group.length) return null;
+                return (
+                  <optgroup key={roleGroup} label={roleGroup}>
+                    {group.map(m => <option key={m.username} value={m.username}>{m.name}</option>)}
+                  </optgroup>
+                );
+              })}
+            </select>
+          ) : (
+            <>
+              <input style={inp} value={form.assigneeName} onChange={e => setForm(f => ({ ...f, assigneeName: e.target.value }))} placeholder="Assigned to (name)" />
+              <label style={lbl}>Assignee Email</label>
+              <div style={{ position: 'relative', marginBottom: 12 }}>
+                <Mail size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                <input style={{ ...inp, paddingLeft: 32, marginBottom: 0 }} type="email" value={form.assigneeEmail} onChange={e => setForm(f => ({ ...f, assigneeEmail: e.target.value }))} placeholder="assignee@email.com" />
+              </div>
+            </>
+          )}
           {form.assigneeEmail && (
             <div style={{ fontSize: '12px', color: '#3b82f6', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
               An email notification will be sent to {form.assigneeEmail} when saved.
@@ -586,6 +623,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [members, setMembers] = useState([]);
   const [status, setStatus] = useState('loading');
   const [modal, setModal] = useState(false);
   const [logModal, setLogModal] = useState(false);
@@ -652,6 +690,10 @@ export default function App() {
 
   const handleLogin = async loggedInUser => {
     setUser(loggedInUser);
+    try {
+      const mr = await fetch(`${API_URL}/members`);
+      if (mr.ok) { const md = await mr.json(); if (Array.isArray(md)) setMembers(md); }
+    } catch {}
     try {
       const lr = await fetch(`${API_URL}/logs`);
       const existing = await lr.json() || [];
@@ -1106,7 +1148,7 @@ export default function App() {
         </div>
       </div>
 
-      {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} />}
+      {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} members={members} />}
       {logModal && <LogModal logs={logs} onClose={() => setLogModal(false)} />}
     </div>
   );

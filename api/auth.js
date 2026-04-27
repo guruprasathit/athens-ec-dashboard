@@ -1,6 +1,8 @@
 // api/auth.js — Athens EC Tasks Dashboard
 import { get, set } from './_storage.js';
 
+const COMMUNITY_ROLES = ['EC Member', 'Sub-committee Member'];
+
 const FALLBACK_USERS = {
   admin: { password: process.env.ADMIN_PASSWORD || 'athens2026', role: 'admin', name: 'Admin' },
 };
@@ -12,16 +14,16 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { action, username, name, password, newPassword } = req.body || {};
+  const { action, username, name, password, newPassword, communityRole } = req.body || {};
   const identifier = (username || '').toLowerCase().trim();
 
-  if (!identifier) return res.status(400).json({ error: 'Username is required.' });
+  if (!identifier) return res.status(400).json({ error: 'Email is required.' });
 
   if (action === 'reset-password') {
     if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters.' });
     try {
       const userData = await get(`user:${identifier}`);
-      if (!userData) return res.status(404).json({ error: 'Username not found.' });
+      if (!userData) return res.status(404).json({ error: 'Email not found.' });
       await set(`user:${identifier}`, { ...userData, password: newPassword });
       return res.status(200).json({ success: true });
     } catch {
@@ -33,15 +35,22 @@ export default async function handler(req, res) {
 
   if (action === 'register') {
     if (!name?.trim()) return res.status(400).json({ error: 'Full name is required.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) return res.status(400).json({ error: 'Please enter a valid email address.' });
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (!communityRole || !COMMUNITY_ROLES.includes(communityRole)) return res.status(400).json({ error: 'Please select a valid role.' });
     try {
       const existing = await get(`user:${identifier}`);
-      if (existing) return res.status(409).json({ error: 'Username already exists.' });
+      if (existing) return res.status(409).json({ error: 'This email is already registered.' });
       const userCount = (await get('userCount')) || 0;
-      const role = userCount === 0 ? 'admin' : 'member';
-      await set(`user:${identifier}`, { username: identifier, name: name.trim(), password, role, createdAt: new Date().toISOString() });
+      const systemRole = userCount === 0 ? 'admin' : 'member';
+      const userData = { username: identifier, name: name.trim(), password, role: systemRole, communityRole, createdAt: new Date().toISOString() };
+      await set(`user:${identifier}`, userData);
       await set('userCount', userCount + 1);
-      return res.status(200).json({ success: true, user: { username: identifier, name: name.trim(), role } });
+      // Maintain members list for assignee dropdown
+      const members = (await get('members')) || [];
+      members.push({ username: identifier, name: name.trim(), communityRole, role: systemRole });
+      await set('members', members);
+      return res.status(200).json({ success: true, user: { username: identifier, name: name.trim(), role: systemRole, communityRole } });
     } catch (err) {
       return res.status(500).json({ error: 'Registration failed. Please try again.' });
     }
@@ -50,14 +59,14 @@ export default async function handler(req, res) {
   // Login — check fallback first
   const fallback = FALLBACK_USERS[identifier];
   if (fallback && fallback.password === password) {
-    return res.status(200).json({ success: true, user: { username: identifier, name: fallback.name, role: fallback.role } });
+    return res.status(200).json({ success: true, user: { username: identifier, name: fallback.name, role: fallback.role, communityRole: null } });
   }
 
   try {
     const userData = await get(`user:${identifier}`);
-    if (!userData || userData.password !== password) return res.status(401).json({ error: 'Invalid username or password.' });
-    return res.status(200).json({ success: true, user: { username: identifier, name: userData.name, role: userData.role } });
+    if (!userData || userData.password !== password) return res.status(401).json({ error: 'Invalid email or password.' });
+    return res.status(200).json({ success: true, user: { username: identifier, name: userData.name, role: userData.role, communityRole: userData.communityRole } });
   } catch {
-    return res.status(401).json({ error: 'Invalid username or password.' });
+    return res.status(401).json({ error: 'Invalid email or password.' });
   }
 }
