@@ -146,8 +146,8 @@ function LoginScreen({ onLogin }) {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        .lr{min-height:100vh;background:linear-gradient(135deg,#1e3a5f 0%,#0f2342 100%);display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;}
-        .lc{width:100%;max-width:400px;margin:20px;background:white;border-radius:16px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+        .lr{min-height:100vh;background:url('/login-bg.jpg') center center / cover no-repeat;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;position:relative;overflow:hidden;}.lr::before{content:'';position:absolute;inset:0;background:rgba(5,8,20,0.55);z-index:0;}
+        .lc{position:relative;z-index:1;width:100%;max-width:400px;margin:20px;background:white;border-radius:16px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
         .lh{text-align:center;margin-bottom:32px;}
         .li{width:56px;height:56px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;}
         .lt{font-size:22px;font-weight:700;color:#111827;}.ls{font-size:13px;color:#6b7280;margin-top:4px;}
