@@ -17,6 +17,24 @@ export default async function handler(req, res) {
   const { action, username, name, password, newPassword, communityRole } = req.body || {};
   const identifier = (username || '').toLowerCase().trim();
 
+  if (action === 'update-role') {
+    const { targetUsername, newCommunityRole } = req.body || {};
+    const target = (targetUsername || '').toLowerCase().trim();
+    if (!target) return res.status(400).json({ error: 'Target username is required.' });
+    if (!COMMUNITY_ROLES.includes(newCommunityRole)) return res.status(400).json({ error: 'Invalid role.' });
+    try {
+      const userData = await get(`user:${target}`);
+      if (!userData) return res.status(404).json({ error: 'User not found.' });
+      await set(`user:${target}`, { ...userData, communityRole: newCommunityRole });
+      const members = (await get('members')) || [];
+      const idx = members.findIndex(m => m.username === target);
+      if (idx !== -1) { members[idx].communityRole = newCommunityRole; await set('members', members); }
+      return res.status(200).json({ success: true });
+    } catch {
+      return res.status(500).json({ error: 'Failed to update role. Please try again.' });
+    }
+  }
+
   if (!identifier) return res.status(400).json({ error: 'Email is required.' });
 
   if (action === 'reset-password') {

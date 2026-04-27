@@ -635,37 +635,94 @@ function LogModal({ logs, onClose }) {
 
 // ── Users Modal ────────────────────────────────────────────────────────────────
 
-function UsersModal({ members, currentUser, onClose }) {
+function UsersModal({ members: initialMembers, currentUser, onClose }) {
+  const [members, setMembers] = useState(initialMembers);
+  const [editing, setEditing] = useState({}); // { username: selectedRole }
+  const [saving, setSaving] = useState(null);
+  const [feedback, setFeedback] = useState(null);
   const now = new Date();
   const isActive = lastSeen => lastSeen && (now - new Date(lastSeen)) < 30 * 60 * 1000;
+
+  const saveRole = async (username) => {
+    const newCommunityRole = editing[username];
+    setSaving(username);
+    try {
+      const res = await fetch(`${API_URL}/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-role', username: currentUser.username, targetUsername: username, newCommunityRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setFeedback({ type: 'error', msg: data.error || 'Update failed.' }); }
+      else {
+        setMembers(prev => prev.map(m => m.username === username ? { ...m, communityRole: newCommunityRole } : m));
+        setEditing(prev => { const n = { ...prev }; delete n[username]; return n; });
+        setFeedback({ type: 'success', msg: 'Role updated successfully.' });
+        setTimeout(() => setFeedback(null), 3000);
+      }
+    } catch { setFeedback({ type: 'error', msg: 'Connection error. Please try again.' }); }
+    finally { setSaving(null); }
+  };
+
+  const UserRow = ({ m }) => {
+    const isEditing = editing[m.username] !== undefined;
+    return (
+      <div style={{ padding: '10px 14px', background: '#f9fafb', borderRadius: 8, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0 }}>
+              {m.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{m.name}</div>
+              <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{m.communityRole}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            {m.username === currentUser.username && (
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: '#dbeafe', color: '#1d4ed8' }}>You</span>
+            )}
+            {isActive(m.lastSeen) ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#d1fae5', color: '#065f46' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />Active
+              </span>
+            ) : (
+              <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: '#f3f4f6', color: '#9ca3af' }}>Offline</span>
+            )}
+            {m.username !== currentUser.username && !isEditing && (
+              <button onClick={() => setEditing(prev => ({ ...prev, [m.username]: m.communityRole }))}
+                style={{ fontSize: '0.72rem', fontWeight: 600, padding: '3px 9px', borderRadius: 6, background: 'white', color: '#7c3aed', border: '1.5px solid #7c3aed', cursor: 'pointer' }}>
+                Edit Role
+              </button>
+            )}
+          </div>
+        </div>
+        {isEditing && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+            <select
+              value={editing[m.username]}
+              onChange={e => setEditing(prev => ({ ...prev, [m.username]: e.target.value }))}
+              style={{ flex: 1, padding: '7px 10px', border: '2px solid #7c3aed', borderRadius: 8, fontSize: '0.83rem', outline: 'none', background: 'white' }}
+            >
+              <option value="EC Member">EC Member</option>
+              <option value="Sub-committee Member">Sub-committee Member</option>
+            </select>
+            <button onClick={() => saveRole(m.username)} disabled={saving === m.username}
+              style={{ padding: '7px 14px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.83rem', opacity: saving === m.username ? 0.6 : 1 }}>
+              {saving === m.username ? 'Saving…' : 'Save'}
+            </button>
+            <button onClick={() => setEditing(prev => { const n = { ...prev }; delete n[m.username]; return n; })}
+              style={{ padding: '7px 10px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.83rem' }}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const ecMembers = members.filter(m => m.communityRole === 'EC Member');
   const subMembers = members.filter(m => m.communityRole === 'Sub-committee Member');
-
-  const UserRow = ({ m }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f9fafb', borderRadius: 8, marginBottom: 6 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0 }}>
-          {m.name.charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{m.name}</div>
-          <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{m.communityRole}</div>
-        </div>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {m.username === currentUser.username && (
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: '#dbeafe', color: '#1d4ed8' }}>You</span>
-        )}
-        {isActive(m.lastSeen) ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#d1fae5', color: '#065f46' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />Active
-          </span>
-        ) : (
-          <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: '#f3f4f6', color: '#9ca3af' }}>Offline</span>
-        )}
-      </div>
-    </div>
-  );
 
   const Section = ({ title, list }) => list.length === 0 ? null : (
     <div style={{ marginBottom: 20 }}>
@@ -676,11 +733,16 @@ function UsersModal({ members, currentUser, onClose }) {
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 480, maxHeight: '80vh', overflow: 'auto', padding: '2rem' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 500, maxHeight: '85vh', overflow: 'auto', padding: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.1rem', fontWeight: 700, margin: 0 }}><User size={20} />Registered Users</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
         </div>
+        {feedback && (
+          <div style={{ padding: '8px 14px', borderRadius: 8, marginBottom: 14, fontSize: '0.83rem', fontWeight: 600, background: feedback.type === 'success' ? '#f0fdf4' : '#fef2f2', color: feedback.type === 'success' ? '#15803d' : '#dc2626', border: `1px solid ${feedback.type === 'success' ? '#bbf7d0' : '#fecaca'}` }}>
+            {feedback.msg}
+          </div>
+        )}
         {members.length === 0 ? (
           <div style={{ color: '#9ca3af', textAlign: 'center', padding: '2rem' }}>No registered users yet.</div>
         ) : (
