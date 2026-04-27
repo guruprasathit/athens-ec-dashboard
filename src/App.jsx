@@ -45,7 +45,7 @@ const COLS = [
 
 const BLANK_FORM = {
   title: '', description: '', priority: 'medium', dueDate: '',
-  status: 'backlog', category: '',
+  status: 'backlog', category: '', taskRole: 'EC Member',
   assigneeName: '', assigneeEmail: '', reporterName: '',
   images: [],
 };
@@ -368,6 +368,11 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
             <Tag size={9} />{cat.label}
           </span>
         )}
+        {task.taskRole && (
+          <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700, background: task.taskRole === 'Sub-committee Member' ? '#fef3c7' : '#dbeafe', color: task.taskRole === 'Sub-committee Member' ? '#92400e' : '#1e40af' }}>
+            {task.taskRole === 'Sub-committee Member' ? 'Sub-committee' : 'EC Member'}
+          </span>
+        )}
       </div>
 
       <DueBadge dueDate={task.dueDate} status={task.status} />
@@ -482,6 +487,12 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [] }) {
         <label style={lbl}>Category</label>
         <select style={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
           {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+        </select>
+
+        <label style={lbl}>Task For</label>
+        <select style={inp} value={form.taskRole} onChange={e => setForm(f => ({ ...f, taskRole: e.target.value }))}>
+          <option value="EC Member">EC Member</option>
+          <option value="Sub-committee Member">Sub-committee Member</option>
         </select>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -716,7 +727,7 @@ export default function App() {
 
   const openEdit = task => {
     setEdit(task);
-    setForm({ title: task.title || '', description: task.description || '', priority: task.priority || 'medium', dueDate: task.dueDate || '', status: task.status || 'backlog', category: task.category || '', assigneeName: task.assigneeName || '', assigneeEmail: task.assigneeEmail || '', reporterName: task.reporterName || '', images: task.images || [] });
+    setForm({ title: task.title || '', description: task.description || '', priority: task.priority || 'medium', dueDate: task.dueDate || '', status: task.status || 'backlog', category: task.category || '', taskRole: task.taskRole || 'EC Member', assigneeName: task.assigneeName || '', assigneeEmail: task.assigneeEmail || '', reporterName: task.reporterName || '', images: task.images || [] });
     setModal(true);
   };
 
@@ -1109,7 +1120,10 @@ export default function App() {
         {/* ── Kanban Board ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px,1fr))', gap: '1.25rem' }}>
           {COLS.map(col => {
-            const allColTasks = tasks.filter(t => t.status === col.id);
+            const visibleTasks = user.communityRole === 'Sub-committee Member'
+              ? tasks.filter(t => t.taskRole === 'Sub-committee Member')
+              : tasks;
+            const allColTasks = visibleTasks.filter(t => t.status === col.id);
             const colTasks = allColTasks.filter(t => {
               if (filters.search && !t.title.toLowerCase().includes(filters.search.toLowerCase()) && !(t.description || '').toLowerCase().includes(filters.search.toLowerCase()) && !t.id.toLowerCase().includes(filters.search.toLowerCase())) return false;
               if (filters.category && t.category !== filters.category) return false;
