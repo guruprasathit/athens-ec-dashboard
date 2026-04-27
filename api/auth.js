@@ -12,10 +12,24 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { action, username, name, password } = req.body || {};
+  const { action, username, name, password, newPassword } = req.body || {};
   const identifier = (username || '').toLowerCase().trim();
 
-  if (!identifier || !password) return res.status(400).json({ error: 'Username and password are required.' });
+  if (!identifier) return res.status(400).json({ error: 'Username is required.' });
+
+  if (action === 'reset-password') {
+    if (!newPassword || newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    try {
+      const userData = await get(`user:${identifier}`);
+      if (!userData) return res.status(404).json({ error: 'Username not found.' });
+      await set(`user:${identifier}`, { ...userData, password: newPassword });
+      return res.status(200).json({ success: true });
+    } catch {
+      return res.status(500).json({ error: 'Password reset failed. Please try again.' });
+    }
+  }
+
+  if (!password) return res.status(400).json({ error: 'Password is required.' });
 
   if (action === 'register') {
     if (!name?.trim()) return res.status(400).json({ error: 'Full name is required.' });

@@ -110,20 +110,44 @@ function formatDateTime(iso) {
 // ── Login ──────────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }) {
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [mode, setMode] = useState('login'); // 'login' | 'register' | 'forgot'
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const reset = (newMode) => { setMode(newMode); setError(''); setSuccess(''); setPassword(''); setConfirm(''); };
+
   const submit = async () => {
-    setError('');
+    setError(''); setSuccess('');
     if (!username.trim()) return setError('Please enter your username.');
+
+    if (mode === 'forgot') {
+      if (!password.trim()) return setError('Please enter a new password.');
+      if (password.length < 6) return setError('Password must be at least 6 characters.');
+      if (password !== confirm) return setError('Passwords do not match.');
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reset-password', username: username.toLowerCase().trim(), newPassword: password }),
+        });
+        const data = await res.json();
+        if (!res.ok) return setError(data.error || 'Something went wrong.');
+        setSuccess('Password reset successfully! You can now sign in.');
+        setTimeout(() => reset('login'), 2000);
+      } catch { setError('Connection error. Please try again.'); }
+      finally { setLoading(false); }
+      return;
+    }
+
     if (!password.trim()) return setError('Please enter your password.');
-    if (isRegistering) {
+    if (mode === 'register') {
       if (!fullName.trim()) return setError('Please enter your full name.');
       if (password.length < 6) return setError('Password must be at least 6 characters.');
       if (password !== confirm) return setError('Passwords do not match.');
@@ -133,7 +157,7 @@ function LoginScreen({ onLogin }) {
       const res = await fetch(`${API_URL}/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: isRegistering ? 'register' : 'login', username: username.toLowerCase().trim(), name: fullName.trim(), password }),
+        body: JSON.stringify({ action: mode === 'register' ? 'register' : 'login', username: username.toLowerCase().trim(), name: fullName.trim(), password }),
       });
       const data = await res.json();
       if (!res.ok) return setError(data.error || 'Something went wrong.');
@@ -156,41 +180,54 @@ function LoginScreen({ onLogin }) {
         .lf input:focus{border-color:#3b82f6;}.pw{position:relative;}.pw input{padding-right:40px;}
         .pt{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#9ca3af;}
         .eb{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#dc2626;}
+        .ok{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#15803d;}
         .sb{width:100%;padding:12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;}
         .sb:disabled{opacity:.6;cursor:not-allowed;}
         .sl{text-align:center;margin-top:16px;font-size:13px;color:#6b7280;}.sl button{background:none;border:none;color:#3b82f6;font-weight:600;cursor:pointer;font-size:13px;}
+        .fp{text-align:right;margin-top:-8px;margin-bottom:16px;}.fp button{background:none;border:none;color:#3b82f6;font-size:12px;cursor:pointer;font-weight:500;}
       `}</style>
       <div className="lr">
         <div className="lc">
           <div className="lh">
             <div className="li">📋</div>
             <div className="lt">Athens EC Tasks</div>
-            <div className="ls">Tasks Dashboard</div>
+            <div className="ls">{mode === 'forgot' ? 'Reset Password' : 'Tasks Dashboard'}</div>
           </div>
           {error && <div className="eb">{error}</div>}
-          {isRegistering && (
+          {success && <div className="ok">{success}</div>}
+          {mode === 'register' && (
             <div className="lf"><label>Full Name</label>
               <input type="text" placeholder="Your full name" value={fullName} onChange={e => { setFullName(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus />
             </div>
           )}
           <div className="lf"><label>Username</label>
-            <input type="text" placeholder="Enter username" value={username} onChange={e => { setUsername(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus={!isRegistering} />
+            <input type="text" placeholder="Enter username" value={username} onChange={e => { setUsername(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} autoFocus={mode !== 'register'} />
           </div>
-          <div className="lf"><label>Password</label>
+          <div className="lf"><label>{mode === 'forgot' ? 'New Password' : 'Password'}</label>
             <div className="pw">
-              <input type={showPass ? 'text' : 'password'} placeholder="Enter password" value={password} onChange={e => { setPassword(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} />
+              <input type={showPass ? 'text' : 'password'} placeholder={mode === 'forgot' ? 'Enter new password' : 'Enter password'} value={password} onChange={e => { setPassword(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} />
               <button type="button" className="pt" onClick={() => setShowPass(v => !v)}>{showPass ? '🙈' : '👁'}</button>
             </div>
           </div>
-          {isRegistering && (
+          {mode === 'login' && (
+            <div className="fp"><button onClick={() => reset('forgot')}>Forgot Password?</button></div>
+          )}
+          {(mode === 'register' || mode === 'forgot') && (
             <div className="lf"><label>Confirm Password</label>
               <input type={showPass ? 'text' : 'password'} placeholder="Confirm password" value={confirm} onChange={e => { setConfirm(e.target.value); setError(''); }} onKeyPress={e => e.key === 'Enter' && submit()} />
             </div>
           )}
-          <button className="sb" onClick={submit} disabled={loading}>{loading ? 'Please wait…' : isRegistering ? 'Create Account' : 'Sign In'}</button>
+          <button className="sb" onClick={submit} disabled={loading}>
+            {loading ? 'Please wait…' : mode === 'register' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
+          </button>
           <div className="sl">
-            {isRegistering ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button onClick={() => { setIsRegistering(v => !v); setError(''); setPassword(''); setConfirm(''); }}>{isRegistering ? 'Sign In' : 'Register'}</button>
+            {mode === 'forgot' ? (
+              <><span>Remembered it? </span><button onClick={() => reset('login')}>Sign In</button></>
+            ) : mode === 'register' ? (
+              <><span>Already have an account? </span><button onClick={() => reset('login')}>Sign In</button></>
+            ) : (
+              <><span>Don't have an account? </span><button onClick={() => reset('register')}>Register</button></>
+            )}
           </div>
         </div>
       </div>
