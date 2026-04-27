@@ -1041,8 +1041,8 @@ export default function App() {
         <div style={{ background: 'white', borderRadius: 16, padding: '1.5rem 2rem', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: '1.25rem' }}>
             <div>
-              <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#111827' }}>Athens EC Tasks Dashboard</h1>
-              <p style={{ margin: '2px 0 0', color: '#6b7280', fontSize: '0.875rem' }}>Executive Committee Task Management</p>
+              <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#111827' }}>{isSubcommittee ? 'Sub-committee Tasks' : 'Athens EC Tasks Dashboard'}</h1>
+              <p style={{ margin: '2px 0 0', color: '#6b7280', fontSize: '0.875rem' }}>{isSubcommittee ? 'Sub-committee Task Management' : 'Executive Committee Task Management'}</p>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ padding: '6px 12px', background: '#eff6ff', color: '#1d4ed8', borderRadius: 50, fontWeight: 600, fontSize: '0.85rem', display: 'flex', gap: 6, alignItems: 'center' }}>
