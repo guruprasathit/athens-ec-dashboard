@@ -1150,7 +1150,11 @@ export default function App() {
 
         {/* ── Filter Bar ── */}
         {(() => {
-          const assignees = [...new Set(tasks.map(t => t.assigneeName).filter(Boolean))].sort();
+          const visibleTasks = isSubcommittee ? tasks.filter(t => t.taskRole === 'Sub-committee Member') : tasks;
+          const availableCategories = isSubcommittee
+            ? CATEGORIES.filter(c => c.value && visibleTasks.some(t => t.category === c.value))
+            : CATEGORIES.filter(c => c.value);
+          const assignees = [...new Set(visibleTasks.map(t => t.assigneeName).filter(Boolean))].sort();
           const activeCount = Object.values(filters).filter(Boolean).length;
           const selStyle = { padding: '7px 10px', border: '2px solid #e5e7eb', borderRadius: 8, fontSize: '0.82rem', background: 'white', outline: 'none', cursor: 'pointer', color: '#374151' };
           return (
@@ -1167,7 +1171,7 @@ export default function App() {
               </div>
               <select style={{ ...selStyle, flex: '1 1 140px' }} value={filters.category} onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}>
                 <option value="">All Categories</option>
-                {CATEGORIES.filter(c => c.value).map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {availableCategories.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
               <select style={{ ...selStyle, flex: '1 1 120px' }} value={filters.priority} onChange={e => setFilters(f => ({ ...f, priority: e.target.value }))}>
                 <option value="">All Priorities</option>
@@ -1176,10 +1180,12 @@ export default function App() {
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
               </select>
-              <select style={{ ...selStyle, flex: '1 1 140px' }} value={filters.assignee} onChange={e => setFilters(f => ({ ...f, assignee: e.target.value }))}>
-                <option value="">All Assignees</option>
-                {assignees.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
+              {!isSubcommittee && (
+                <select style={{ ...selStyle, flex: '1 1 140px' }} value={filters.assignee} onChange={e => setFilters(f => ({ ...f, assignee: e.target.value }))}>
+                  <option value="">All Assignees</option>
+                  {assignees.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              )}
               {activeCount > 0 && (
                 <button
                   onClick={() => setFilters({ search: '', category: '', priority: '', assignee: '' })}
