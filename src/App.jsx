@@ -338,7 +338,7 @@ function CommentsSection({ task, user, onAddComment }) {
 
 // ── Task Card ──────────────────────────────────────────────────────────────────
 
-function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
+function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, scIndex }) {
   const p = PRIORITY[task.priority] || PRIORITY.medium;
   const cat = categoryMeta(task.category);
   const [lightbox, setLightbox] = useState(null);
@@ -349,7 +349,12 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
       {/* Header row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '2px 6px', display: 'inline-block', marginBottom: 4, letterSpacing: '0.05em' }}>{task.id}</div>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.05em' }}>{task.id}</div>
+            {scIndex != null && (
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 4, padding: '2px 6px', letterSpacing: '0.05em' }}>SC-{String(scIndex).padStart(3, '0')}</div>
+            )}
+          </div>
           <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>{task.title}</div>
         </div>
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
@@ -1261,6 +1266,16 @@ export default function App() {
         })()}
 
         {/* ── Kanban Board ── */}
+        {(() => {
+          const scIndexMap = isSubcommittee
+            ? Object.fromEntries(
+                [...tasks]
+                  .filter(t => t.taskRole === 'Sub-committee Member')
+                  .sort((a, b) => a.id.localeCompare(b.id))
+                  .map((t, i) => [t.id, i + 1])
+              )
+            : null;
+          return (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px,1fr))', gap: '1.25rem' }}>
           {COLS.map(col => {
             const visibleTasks = user.communityRole === 'Sub-committee Member'
@@ -1293,7 +1308,7 @@ export default function App() {
                     </div>
                   )}
                   {colTasks.map(task => (
-                    <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} />
+                    <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} scIndex={scIndexMap?.[task.id]} />
                   ))}
                 </div>
                 <button onClick={() => openNew(col.id)} style={{ width: '100%', padding: '8px', border: '2px dashed #d1d5db', background: 'transparent', borderRadius: 8, color: '#9ca3af', fontWeight: 600, cursor: 'pointer', fontSize: '0.83rem', marginTop: 4 }}>
@@ -1303,6 +1318,8 @@ export default function App() {
             );
           })}
         </div>
+          );
+        })()}
       </div>
 
       {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} members={members} user={user} />}
