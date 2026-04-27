@@ -628,6 +628,71 @@ function LogModal({ logs, onClose }) {
   );
 }
 
+// ── Users Modal ────────────────────────────────────────────────────────────────
+
+function UsersModal({ members, currentUser, onClose }) {
+  const now = new Date();
+  const isActive = lastSeen => lastSeen && (now - new Date(lastSeen)) < 30 * 60 * 1000;
+  const ecMembers = members.filter(m => m.communityRole === 'EC Member');
+  const subMembers = members.filter(m => m.communityRole === 'Sub-committee Member');
+
+  const UserRow = ({ m }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#f9fafb', borderRadius: 8, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0 }}>
+          {m.name.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>{m.name}</div>
+          <div style={{ fontSize: '0.72rem', color: '#6b7280' }}>{m.communityRole}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {m.username === currentUser.username && (
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: '#dbeafe', color: '#1d4ed8' }}>You</span>
+        )}
+        {isActive(m.lastSeen) ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#d1fae5', color: '#065f46' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />Active
+          </span>
+        ) : (
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: '#f3f4f6', color: '#9ca3af' }}>Offline</span>
+        )}
+      </div>
+    </div>
+  );
+
+  const Section = ({ title, list }) => list.length === 0 ? null : (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{title} ({list.length})</div>
+      {list.map(m => <UserRow key={m.username} m={m} />)}
+    </div>
+  );
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, width: '100%', maxWidth: 480, maxHeight: '80vh', overflow: 'auto', padding: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '1.1rem', fontWeight: 700, margin: 0 }}><User size={20} />Registered Users</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={20} /></button>
+        </div>
+        {members.length === 0 ? (
+          <div style={{ color: '#9ca3af', textAlign: 'center', padding: '2rem' }}>No registered users yet.</div>
+        ) : (
+          <>
+            <Section title="EC Members" list={ecMembers} />
+            <Section title="Sub-committee Members" list={subMembers} />
+          </>
+        )}
+        <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginTop: 8 }}>
+          Active = logged in within the last 30 minutes
+        </div>
+        <button onClick={onClose} style={{ width: '100%', padding: '10px', marginTop: 16, background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ───────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -638,6 +703,7 @@ export default function App() {
   const [status, setStatus] = useState('loading');
   const [modal, setModal] = useState(false);
   const [logModal, setLogModal] = useState(false);
+  const [usersModal, setUsersModal] = useState(false);
   const [edit, setEdit] = useState(null);
   const [form, setForm] = useState(BLANK_FORM);
   const [filters, setFilters] = useState({ search: '', category: '', priority: '', assignee: '' });
@@ -1051,6 +1117,7 @@ export default function App() {
               </div>
               {!isSubcommittee && <div style={{ padding: '6px 12px', background: sc.bg, color: sc.color, borderRadius: 8, fontWeight: 600, fontSize: '0.82rem', display: 'flex', gap: 4, alignItems: 'center' }}><Database size={13} />{status}</div>}
               {!isSubcommittee && <button onClick={() => setLogModal(true)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Activity size={14} />Log</button>}
+              {user.role === 'admin' && <button onClick={() => setUsersModal(true)} style={{ padding: '6px 12px', background: 'white', color: '#7c3aed', border: '2px solid #7c3aed', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><User size={14} />Users</button>}
               {!isSubcommittee && <button onClick={() => loadData(false)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><RefreshCw size={14} />Refresh</button>}
               {!isSubcommittee && <button onClick={exportXLSX} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Download size={14} />Export</button>}
               {user.role === 'admin' && <button onClick={generateReport} style={{ padding: '6px 12px', background: 'linear-gradient(135deg,#1e3a5f,#0f2342)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><FileText size={14} />Report</button>}
@@ -1167,6 +1234,7 @@ export default function App() {
 
       {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} members={members} />}
       {logModal && <LogModal logs={logs} onClose={() => setLogModal(false)} />}
+      {usersModal && <UsersModal members={members} currentUser={user} onClose={() => setUsersModal(false)} />}
     </div>
   );
 }

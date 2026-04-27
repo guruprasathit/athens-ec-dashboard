@@ -65,6 +65,12 @@ export default async function handler(req, res) {
   try {
     const userData = await get(`user:${identifier}`);
     if (!userData || userData.password !== password) return res.status(401).json({ error: 'Invalid email or password.' });
+    // Track lastSeen in members list
+    try {
+      const members = (await get('members')) || [];
+      const idx = members.findIndex(m => m.username === identifier);
+      if (idx !== -1) { members[idx].lastSeen = new Date().toISOString(); await set('members', members); }
+    } catch {}
     return res.status(200).json({ success: true, user: { username: identifier, name: userData.name, role: userData.role, communityRole: userData.communityRole } });
   } catch {
     return res.status(401).json({ error: 'Invalid email or password.' });
