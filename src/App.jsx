@@ -1017,11 +1017,14 @@ export default function App() {
 
   // ── Stats ────────────────────────────────────────────────────────────────────
 
+  const isSubcommittee = user?.communityRole === 'Sub-committee Member';
+  const statTasks = isSubcommittee ? tasks.filter(t => t.taskRole === 'Sub-committee Member') : tasks;
+
   const stats = {
-    total:   tasks.length,
-    overdue: tasks.filter(t => t.dueDate && new Date(t.dueDate + 'T00:00:00') < new Date().setHours(0,0,0,0) && t.status !== 'done').length,
-    done:    tasks.filter(t => t.status === 'done').length,
-    assigned: tasks.filter(t => t.assigneeEmail).length,
+    total:   statTasks.length,
+    overdue: statTasks.filter(t => t.dueDate && new Date(t.dueDate + 'T00:00:00') < new Date().setHours(0,0,0,0) && t.status !== 'done').length,
+    done:    statTasks.filter(t => t.status === 'done').length,
+    assigned: statTasks.filter(t => t.assigneeEmail).length,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -1046,10 +1049,10 @@ export default function App() {
                 <User size={14} />{user.name}
                 {user.role === 'admin' && <span style={{ background: '#fbbf24', color: '#92400e', fontSize: '0.65rem', fontWeight: 700, padding: '1px 5px', borderRadius: 4 }}>ADMIN</span>}
               </div>
-              <div style={{ padding: '6px 12px', background: sc.bg, color: sc.color, borderRadius: 8, fontWeight: 600, fontSize: '0.82rem', display: 'flex', gap: 4, alignItems: 'center' }}><Database size={13} />{status}</div>
-              <button onClick={() => setLogModal(true)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Activity size={14} />Log</button>
-              <button onClick={() => loadData(false)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><RefreshCw size={14} />Refresh</button>
-              <button onClick={exportXLSX} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Download size={14} />Export</button>
+              {!isSubcommittee && <div style={{ padding: '6px 12px', background: sc.bg, color: sc.color, borderRadius: 8, fontWeight: 600, fontSize: '0.82rem', display: 'flex', gap: 4, alignItems: 'center' }}><Database size={13} />{status}</div>}
+              {!isSubcommittee && <button onClick={() => setLogModal(true)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Activity size={14} />Log</button>}
+              {!isSubcommittee && <button onClick={() => loadData(false)} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><RefreshCw size={14} />Refresh</button>}
+              {!isSubcommittee && <button onClick={exportXLSX} style={{ padding: '6px 12px', background: 'white', color: '#3b82f6', border: '2px solid #3b82f6', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Download size={14} />Export</button>}
               {user.role === 'admin' && <button onClick={generateReport} style={{ padding: '6px 12px', background: 'linear-gradient(135deg,#1e3a5f,#0f2342)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><FileText size={14} />Report</button>}
               <button onClick={() => openNew()} style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Plus size={14} />New Task</button>
               {user.role === 'admin' && <button onClick={clearAll} style={{ padding: '6px 12px', background: 'white', color: '#ef4444', border: '2px solid #ef4444', borderRadius: 8, fontWeight: 600, cursor: 'pointer', display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.83rem' }}><Trash2 size={14} />Clear</button>}
