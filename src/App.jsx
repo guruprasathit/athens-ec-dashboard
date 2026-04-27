@@ -453,7 +453,8 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment }) {
 
 // ── Task Modal ─────────────────────────────────────────────────────────────────
 
-function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [] }) {
+function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [], user }) {
+  const isSubcommitteeMember = user?.communityRole === 'Sub-committee Member';
   const inp = { width: '100%', padding: '9px 12px', border: '2px solid #e5e7eb', borderRadius: 8, fontSize: '14px', fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 12, outline: 'none' };
   const lbl = { display: 'block', fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' };
 
@@ -490,10 +491,14 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [] }) {
         </select>
 
         <label style={lbl}>Task For</label>
-        <select style={inp} value={form.taskRole} onChange={e => setForm(f => ({ ...f, taskRole: e.target.value }))}>
-          <option value="EC Member">EC Member</option>
-          <option value="Sub-committee Member">Sub-committee Member</option>
-        </select>
+        {isSubcommitteeMember ? (
+          <div style={{ ...inp, background: '#f9fafb', color: '#6b7280', cursor: 'not-allowed', marginBottom: 12 }}>Sub-committee Member</div>
+        ) : (
+          <select style={inp} value={form.taskRole} onChange={e => setForm(f => ({ ...f, taskRole: e.target.value }))}>
+            <option value="EC Member">EC Member</option>
+            <option value="Sub-committee Member">Sub-committee Member</option>
+          </select>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div style={{ gridColumn: isEdit ? 'auto' : '1 / -1' }}>
@@ -787,7 +792,7 @@ export default function App() {
 
   const openNew = (defaultStatus = 'backlog') => {
     setEdit(null);
-    setForm({ ...BLANK_FORM, status: defaultStatus, reporterName: user.name });
+    setForm({ ...BLANK_FORM, status: defaultStatus, reporterName: user.name, taskRole: user.communityRole === 'Sub-committee Member' ? 'Sub-committee Member' : 'EC Member' });
     setModal(true);
   };
 
@@ -1232,7 +1237,7 @@ export default function App() {
         </div>
       </div>
 
-      {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} members={members} />}
+      {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} members={members} user={user} />}
       {logModal && <LogModal logs={logs} onClose={() => setLogModal(false)} />}
       {usersModal && <UsersModal members={members} currentUser={user} onClose={() => setUsersModal(false)} />}
     </div>
