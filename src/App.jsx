@@ -646,7 +646,20 @@ function UsersModal({ members: initialMembers, currentUser, onClose }) {
   const [saving, setSaving] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const now = new Date();
-  const isActive = lastSeen => lastSeen && (now - new Date(lastSeen)) < 30 * 60 * 1000;
+  const isActive = lastSeen => lastSeen && (now - new Date(lastSeen)) < 10 * 60 * 1000;
+  const formatLastSeen = (lastSeen) => {
+    if (!lastSeen) return 'Never logged in';
+    const diff = (now - new Date(lastSeen)) / 1000;
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)} min${Math.floor(diff / 60) > 1 ? 's' : ''} ago`;
+    const hrs = diff / 3600;
+    if (hrs < 24) return `${Math.floor(hrs)} hr${Math.floor(hrs) > 1 ? 's' : ''} ago`;
+    const days = hrs / 24;
+    const t = new Date(lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (days < 2) return `Yesterday at ${t}`;
+    if (days < 7) return `${Math.floor(days)} days ago at ${t}`;
+    return new Date(lastSeen).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
 
   const saveRole = async (username) => {
     const newCommunityRole = editing[username];
@@ -687,13 +700,16 @@ function UsersModal({ members: initialMembers, currentUser, onClose }) {
             {m.username === currentUser.username && (
               <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 7px', borderRadius: 10, background: '#dbeafe', color: '#1d4ed8' }}>You</span>
             )}
-            {isActive(m.lastSeen) ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#d1fae5', color: '#065f46' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />Active
-              </span>
-            ) : (
-              <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: '#f3f4f6', color: '#9ca3af' }}>Offline</span>
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+              {isActive(m.lastSeen) ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#d1fae5', color: '#065f46' }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />Online now
+                </span>
+              ) : (
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: 10, background: '#f3f4f6', color: '#9ca3af' }}>Offline</span>
+              )}
+              <span style={{ fontSize: '0.68rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>{formatLastSeen(m.lastSeen)}</span>
+            </div>
             {m.username !== currentUser.username && !isEditing && (
               <button onClick={() => setEditing(prev => ({ ...prev, [m.username]: m.communityRole }))}
                 style={{ fontSize: '0.72rem', fontWeight: 600, padding: '3px 9px', borderRadius: 6, background: 'white', color: '#7c3aed', border: '1.5px solid #7c3aed', cursor: 'pointer' }}>
@@ -726,8 +742,14 @@ function UsersModal({ members: initialMembers, currentUser, onClose }) {
     );
   };
 
-  const ecMembers = members.filter(m => m.communityRole === 'EC Member');
-  const subMembers = members.filter(m => m.communityRole === 'Sub-committee Member');
+  const sortByLastSeen = arr => [...arr].sort((a, b) => {
+    if (!a.lastSeen && !b.lastSeen) return 0;
+    if (!a.lastSeen) return 1;
+    if (!b.lastSeen) return -1;
+    return new Date(b.lastSeen) - new Date(a.lastSeen);
+  });
+  const ecMembers = sortByLastSeen(members.filter(m => m.communityRole === 'EC Member'));
+  const subMembers = sortByLastSeen(members.filter(m => m.communityRole === 'Sub-committee Member'));
 
   const Section = ({ title, list }) => list.length === 0 ? null : (
     <div style={{ marginBottom: 20 }}>
@@ -757,7 +779,7 @@ function UsersModal({ members: initialMembers, currentUser, onClose }) {
           </>
         )}
         <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginTop: 8 }}>
-          Active = logged in within the last 30 minutes
+          Online now = active within the last 10 minutes
         </div>
         <button onClick={onClose} style={{ width: '100%', padding: '10px', marginTop: 16, background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>Close</button>
       </div>
