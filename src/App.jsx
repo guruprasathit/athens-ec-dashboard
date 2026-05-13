@@ -87,7 +87,10 @@ async function fetchNextTaskId() {
 }
 
 async function sendAssignEmail(taskId) {
-  try { await fetch(`${API_URL}/notify?action=assign&taskId=${taskId}`); } catch {}
+  try {
+    const res = await fetch(`${API_URL}/notify?action=assign&taskId=${taskId}`);
+    return res.ok;
+  } catch { return false; }
 }
 
 function categoryMeta(value) {
@@ -800,6 +803,12 @@ export default function App() {
   const [usersModal, setUsersModal] = useState(false);
   const [edit, setEdit] = useState(null);
   const [form, setForm] = useState(BLANK_FORM);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
   const [filters, setFilters] = useState({ search: '', category: '', priority: '', assignee: '' });
 
   // ── Data loading ─────────────────────────────────────────────────────────────
@@ -922,7 +931,10 @@ export default function App() {
     setTasks(updatedTasks);
     await saveTasks(updatedTasks);
     await saveLogs(updatedLogs);
-    if (form.assigneeEmail && form.assigneeEmail !== prevAssigneeEmail) sendAssignEmail(taskId);
+    if (form.assigneeEmail && form.assigneeEmail !== prevAssigneeEmail) {
+      const ok = await sendAssignEmail(taskId);
+      showToast(ok ? `✅ Email sent to ${form.assigneeEmail}` : `❌ Failed to send email to ${form.assigneeEmail}`, ok ? 'success' : 'error');
+    }
     setModal(false);
   };
 
@@ -1347,6 +1359,13 @@ export default function App() {
       {modal && <TaskModal form={form} setForm={setForm} onSave={saveTask} onClose={() => setModal(false)} isEdit={!!edit} members={members} user={user} />}
       {logModal && <LogModal logs={logs} onClose={() => setLogModal(false)} />}
       {usersModal && <UsersModal members={members} currentUser={user} onClose={() => setUsersModal(false)} />}
+
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, padding: '14px 20px', borderRadius: 10, background: toast.type === 'success' ? '#064e3b' : '#7f1d1d', color: 'white', fontWeight: 600, fontSize: '0.9rem', boxShadow: '0 4px 20px rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', gap: 10, maxWidth: 380 }}>
+          {toast.msg}
+          <button onClick={() => setToast(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
+        </div>
+      )}
     </div>
   );
 }
