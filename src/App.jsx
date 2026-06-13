@@ -521,6 +521,45 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, members,
   );
 }
 
+// ── External Email Input ───────────────────────────────────────────────────────
+
+function ExternalEmailInput({ assigneeEmails, onAdd, inp }) {
+  const [value, setValue] = useState('');
+  const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  const isAlreadyAdded = assigneeEmails.includes(value.trim().toLowerCase());
+
+  const add = () => {
+    const email = value.trim().toLowerCase();
+    if (!isValid || isAlreadyAdded) return;
+    onAdd(email);
+    setValue('');
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+      <div style={{ position: 'relative', flex: 1 }}>
+        <Mail size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+        <input
+          style={{ ...inp, paddingLeft: 32, marginBottom: 0 }}
+          type="email"
+          value={value}
+          placeholder="external@email.com"
+          onChange={e => setValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={add}
+        disabled={!isValid || isAlreadyAdded}
+        style={{ padding: '0 14px', background: isValid && !isAlreadyAdded ? '#3b82f6' : '#e5e7eb', color: isValid && !isAlreadyAdded ? 'white' : '#9ca3af', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.82rem', cursor: isValid && !isAlreadyAdded ? 'pointer' : 'not-allowed', whiteSpace: 'nowrap' }}
+      >
+        + Add
+      </button>
+    </div>
+  );
+}
+
 // ── Task Modal ─────────────────────────────────────────────────────────────────
 
 function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [], user }) {
@@ -622,7 +661,7 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [], user 
             </div>
           )}
           {/* Member list to click */}
-          {members.length > 0 ? (
+          {members.length > 0 && (
             <div style={{ border: '2px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
               {['EC Member', 'Sub-committee Member'].map(roleGroup => {
                 const group = members.filter(m => m.communityRole === roleGroup);
@@ -657,20 +696,16 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [], user 
                 );
               })}
             </div>
-          ) : (
-            <div style={{ position: 'relative', marginBottom: 12 }}>
-              <Mail size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-              <input style={{ ...inp, paddingLeft: 32, marginBottom: 0 }} type="email" placeholder="assignee@email.com"
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value.trim())) {
-                    const email = e.target.value.trim();
-                    if (!(form.assigneeEmails || []).includes(email)) setForm(f => ({ ...f, assigneeEmails: [...(f.assigneeEmails || []), email] }));
-                    e.target.value = '';
-                  }
-                }}
-              />
-            </div>
           )}
+          {/* External email input — always shown */}
+          <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+            Add External Email
+          </div>
+          <ExternalEmailInput
+            assigneeEmails={form.assigneeEmails || []}
+            onAdd={email => setForm(f => ({ ...f, assigneeEmails: [...new Set([...(f.assigneeEmails || []), email])] }))}
+            inp={inp}
+          />
           {(form.assigneeEmails || []).length > 0 && (
             <div style={{ fontSize: '12px', color: '#3b82f6', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
               Email notification will be sent to {(form.assigneeEmails || []).length} assignee(s) when saved.
