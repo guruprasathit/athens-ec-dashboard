@@ -708,7 +708,10 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [], user 
           />
           {(form.assigneeEmails || []).length > 0 && (
             <div style={{ fontSize: '12px', color: '#3b82f6', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
-              Email notification will be sent to {(form.assigneeEmails || []).length} assignee(s) when saved.
+              📧 Email will be sent to: {(form.assigneeEmails || []).map(e => {
+                const m = members.find(x => x.username === e);
+                return m ? m.name : e;
+              }).join(', ')}
             </div>
           )}
         </div>
