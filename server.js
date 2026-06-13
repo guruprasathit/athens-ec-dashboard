@@ -39,6 +39,16 @@ app.post('/api/auth', (req, res) => {
   res.status(400).json({ error: 'Invalid action' });
 });
 
+// Members (derived from users for local dev)
+app.get('/api/members', (req, res) => {
+  const members = fileGet('members');
+  if (members) return res.json(members);
+  // Fallback: derive from users object
+  const users = fileGet('users') || {};
+  const list = Object.values(users).map(({ username, name, role, communityRole }) => ({ username, name, role, communityRole: communityRole || 'EC Member' }));
+  res.json(list);
+});
+
 // Tasks
 app.get('/api/tasks', (req, res) => res.json(fileGet('tasks') || []));
 app.post('/api/tasks', (req, res) => { fileSet('tasks', req.body.tasks); res.json({ success: true }); });
