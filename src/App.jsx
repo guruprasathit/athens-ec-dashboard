@@ -46,7 +46,7 @@ const COLS = [
 const BLANK_FORM = {
   title: '', description: '', priority: 'medium', dueDate: '',
   status: 'backlog', category: '', taskRole: 'EC Member',
-  assigneeName: '', assigneeEmail: '', reporterName: '',
+  assigneeName: '', assigneeEmail: '', assigneeEmails: [], reporterName: '',
   images: [],
 };
 
@@ -86,9 +86,10 @@ async function fetchNextTaskId() {
   return data.taskId;
 }
 
-async function sendAssignEmail(taskId) {
+async function sendAssignEmail(taskId, email) {
   try {
-    const res = await fetch(`${API_URL}/notify?action=assign&taskId=${taskId}`);
+    const url = email ? `${API_URL}/notify?action=assign&taskId=${taskId}&email=${encodeURIComponent(email)}` : `${API_URL}/notify?action=assign&taskId=${taskId}`;
+    const res = await fetch(url);
     return res.ok;
   } catch { return false; }
 }
@@ -467,12 +468,16 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, members,
           <User size={10} />Reporter: <strong>{task.reporterName}</strong>
         </div>
       )}
-      {task.assigneeName && (
-        <div style={{ fontSize: '0.75rem', color: '#1d4ed8', padding: '4px 8px', background: '#eff6ff', borderRadius: 6, marginBottom: 8, border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-          <User size={10} />Assignee: <strong>{task.assigneeName}</strong>
-          {task.assigneeEmail && <span style={{ color: '#6b7280', fontSize: '0.7rem' }}>({task.assigneeEmail})</span>}
-        </div>
-      )}
+      {(() => {
+        const emails = task.assigneeEmails?.length > 0 ? task.assigneeEmails : (task.assigneeEmail ? [task.assigneeEmail] : []);
+        if (!emails.length) return null;
+        return (
+          <div style={{ fontSize: '0.75rem', color: '#1d4ed8', padding: '4px 8px', background: '#eff6ff', borderRadius: 6, marginBottom: 8, border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <User size={10} />Assigned:&nbsp;
+            {emails.map((e, i) => <strong key={e}>{e}{i < emails.length - 1 ? ', ' : ''}</strong>)}
+          </div>
+        );
+      })()}
 
       {/* Move buttons */}
       {task.status !== 'done' && (
@@ -599,40 +604,76 @@ function TaskModal({ form, setForm, onSave, onClose, isEdit, members = [], user 
           <label style={lbl}>Reporter Name</label>
           <input style={inp} value={form.reporterName} onChange={e => setForm(f => ({ ...f, reporterName: e.target.value }))} placeholder="Reported by" />
 
-          <label style={lbl}>Assign To</label>
+          <label style={lbl}>Assign To (select multiple)</label>
+          {/* Selected tags */}
+          {(form.assigneeEmails || []).length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+              {(form.assigneeEmails || []).map(email => {
+                const m = members.find(x => x.username === email);
+                return (
+                  <span key={email} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 20, padding: '3px 8px 3px 10px', fontSize: '0.78rem', fontWeight: 600 }}>
+                    {m ? m.name : email}
+                    <button type="button" onClick={() => setForm(f => ({ ...f, assigneeEmails: f.assigneeEmails.filter(e => e !== email) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', display: 'flex', alignItems: 'center', padding: 0, lineHeight: 1 }}>
+                      <X size={12} />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {/* Member list to click */}
           {members.length > 0 ? (
-            <select
-              style={{ ...inp, color: form.assigneeEmail ? '#111827' : '#9ca3af' }}
-              value={form.assigneeEmail}
-              onChange={e => {
-                const selected = members.find(m => m.username === e.target.value);
-                setForm(f => ({ ...f, assigneeEmail: selected ? selected.username : '', assigneeName: selected ? selected.name : '' }));
-              }}
-            >
-              <option value="">— Unassigned —</option>
+            <div style={{ border: '2px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
               {['EC Member', 'Sub-committee Member'].map(roleGroup => {
                 const group = members.filter(m => m.communityRole === roleGroup);
                 if (!group.length) return null;
                 return (
-                  <optgroup key={roleGroup} label={roleGroup}>
-                    {group.map(m => <option key={m.username} value={m.username}>{m.name}</option>)}
-                  </optgroup>
+                  <div key={roleGroup}>
+                    <div style={{ padding: '4px 10px', fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', background: '#f9fafb', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{roleGroup}</div>
+                    {group.map(m => {
+                      const selected = (form.assigneeEmails || []).includes(m.username);
+                      return (
+                        <div
+                          key={m.username}
+                          onClick={() => setForm(f => ({
+                            ...f,
+                            assigneeEmails: selected
+                              ? f.assigneeEmails.filter(e => e !== m.username)
+                              : [...(f.assigneeEmails || []), m.username]
+                          }))}
+                          style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: selected ? '#eff6ff' : 'white', borderTop: '1px solid #f3f4f6' }}
+                          onMouseEnter={e => { if (!selected) e.currentTarget.style.background = '#f9fafb'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = selected ? '#eff6ff' : 'white'; }}
+                        >
+                          <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${selected ? '#3b82f6' : '#d1d5db'}`, background: selected ? '#3b82f6' : 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            {selected && <span style={{ color: 'white', fontSize: 10, fontWeight: 700 }}>✓</span>}
+                          </div>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111827' }}>{m.name}</span>
+                          <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: 'auto' }}>{m.username}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 );
               })}
-            </select>
+            </div>
           ) : (
-            <>
-              <input style={inp} value={form.assigneeName} onChange={e => setForm(f => ({ ...f, assigneeName: e.target.value }))} placeholder="Assigned to (name)" />
-              <label style={lbl}>Assignee Email</label>
-              <div style={{ position: 'relative', marginBottom: 12 }}>
-                <Mail size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-                <input style={{ ...inp, paddingLeft: 32, marginBottom: 0 }} type="email" value={form.assigneeEmail} onChange={e => setForm(f => ({ ...f, assigneeEmail: e.target.value }))} placeholder="assignee@email.com" />
-              </div>
-            </>
+            <div style={{ position: 'relative', marginBottom: 12 }}>
+              <Mail size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+              <input style={{ ...inp, paddingLeft: 32, marginBottom: 0 }} type="email" placeholder="assignee@email.com"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value.trim())) {
+                    const email = e.target.value.trim();
+                    if (!(form.assigneeEmails || []).includes(email)) setForm(f => ({ ...f, assigneeEmails: [...(f.assigneeEmails || []), email] }));
+                    e.target.value = '';
+                  }
+                }}
+              />
+            </div>
           )}
-          {form.assigneeEmail && (
+          {(form.assigneeEmails || []).length > 0 && (
             <div style={{ fontSize: '12px', color: '#3b82f6', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
-              An email notification will be sent to {form.assigneeEmail} when saved.
+              Email notification will be sent to {(form.assigneeEmails || []).length} assignee(s) when saved.
             </div>
           )}
         </div>
@@ -953,7 +994,8 @@ export default function App() {
 
   const openEdit = task => {
     setEdit(task);
-    setForm({ title: task.title || '', description: task.description || '', priority: task.priority || 'medium', dueDate: task.dueDate || '', status: task.status || 'backlog', category: task.category || '', taskRole: task.taskRole || 'EC Member', assigneeName: task.assigneeName || '', assigneeEmail: task.assigneeEmail || '', reporterName: task.reporterName || '', images: task.images || [] });
+    const existingEmails = task.assigneeEmails?.length > 0 ? task.assigneeEmails : (task.assigneeEmail ? [task.assigneeEmail] : []);
+    setForm({ title: task.title || '', description: task.description || '', priority: task.priority || 'medium', dueDate: task.dueDate || '', status: task.status || 'backlog', category: task.category || '', taskRole: task.taskRole || 'EC Member', assigneeName: task.assigneeName || '', assigneeEmail: task.assigneeEmail || '', assigneeEmails: existingEmails, reporterName: task.reporterName || '', images: task.images || [] });
     setModal(true);
   };
 
@@ -963,34 +1005,41 @@ export default function App() {
 
     const now = new Date();
     let updatedTasks, updatedLogs, taskId;
-    const prevAssigneeEmail = edit?.assigneeEmail || '';
+    const assigneeEmails = form.assigneeEmails || [];
+    const prevEmails = edit?.assigneeEmails?.length > 0 ? edit.assigneeEmails : (edit?.assigneeEmail ? [edit.assigneeEmail] : []);
+    const primaryEmail = assigneeEmails[0] || '';
+    const primaryMember = members.find(m => m.username === primaryEmail);
+    const formWithAssign = { ...form, assigneeEmails, assigneeEmail: primaryEmail, assigneeName: primaryMember?.name || form.assigneeName || '' };
 
     if (edit) {
       taskId = edit.id;
       updatedTasks = tasks.map(t => {
         if (t.id !== taskId) return t;
-        const n = { ...t, ...form, id: taskId, comments: t.comments || [], lastModifiedBy: user.username, lastModifiedAt: now.toISOString() };
-        if (form.status === 'in-progress' && !t.startedAt) { n.startedAt = now.toISOString(); }
-        if (form.status === 'done' && !t.completedAt) { n.completedAt = now.toISOString(); }
-        if (form.status !== 'done') { n.completedAt = null; }
+        const n = { ...t, ...formWithAssign, id: taskId, comments: t.comments || [], lastModifiedBy: user.username, lastModifiedAt: now.toISOString() };
+        if (formWithAssign.status === 'in-progress' && !t.startedAt) { n.startedAt = now.toISOString(); }
+        if (formWithAssign.status === 'done' && !t.completedAt) { n.completedAt = now.toISOString(); }
+        if (formWithAssign.status !== 'done') { n.completedAt = null; }
         return n;
       });
-      updatedLogs = addLog('UPDATED', form.title, form.assigneeName ? `Assigned to ${form.assigneeName}` : '');
+      updatedLogs = addLog('UPDATED', form.title, assigneeEmails.length ? `Assigned to ${assigneeEmails.join(', ')}` : '');
     } else {
       taskId = await fetchNextTaskId();
-      const newTask = { ...form, id: taskId, comments: [], createdAt: now.toISOString(), createdBy: user.username, createdByName: user.name };
-      if (form.status === 'in-progress') { newTask.startDate = now.toISOString().split('T')[0]; newTask.startTime = now.toLocaleTimeString(); }
-      if (form.status === 'done') { newTask.completionDate = now.toISOString().split('T')[0]; newTask.completionTime = now.toLocaleTimeString(); }
+      const newTask = { ...formWithAssign, id: taskId, comments: [], createdAt: now.toISOString(), createdBy: user.username, createdByName: user.name };
+      if (formWithAssign.status === 'in-progress') { newTask.startDate = now.toISOString().split('T')[0]; newTask.startTime = now.toLocaleTimeString(); }
+      if (formWithAssign.status === 'done') { newTask.completionDate = now.toISOString().split('T')[0]; newTask.completionTime = now.toLocaleTimeString(); }
       updatedTasks = [...tasks, newTask];
-      updatedLogs = addLog('CREATED', form.title, `${taskId}${form.assigneeName ? ` · Assigned to ${form.assigneeName}` : ` · Priority: ${form.priority}`}`);
+      updatedLogs = addLog('CREATED', form.title, `${taskId}${assigneeEmails.length ? ` · Assigned to ${assigneeEmails.join(', ')}` : ` · Priority: ${form.priority}`}`);
     }
 
     setTasks(updatedTasks);
     await saveTasks(updatedTasks);
     await saveLogs(updatedLogs);
-    if (form.assigneeEmail && form.assigneeEmail !== prevAssigneeEmail) {
-      const ok = await sendAssignEmail(taskId);
-      showToast(ok ? `✅ Email sent to ${form.assigneeEmail}` : `❌ Failed to send email to ${form.assigneeEmail}`, ok ? 'success' : 'error');
+    const newEmails = assigneeEmails.filter(e => !prevEmails.includes(e));
+    if (newEmails.length > 0) {
+      const results = await Promise.all(newEmails.map(email => sendAssignEmail(taskId, email)));
+      const sent = newEmails.filter((_, i) => results[i]);
+      if (sent.length > 0) showToast(`✅ Email sent to ${sent.join(', ')}`, 'success');
+      else showToast('❌ Failed to send assignment emails', 'error');
     }
     setModal(false);
   };
