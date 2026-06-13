@@ -399,10 +399,11 @@ function CommentsSection({ task, user, members = [], onAddComment }) {
 
 // ── Task Card ──────────────────────────────────────────────────────────────────
 
-function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, members, scIndex }) {
+function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, onAlert, members, scIndex }) {
   const p = PRIORITY[task.priority] || PRIORITY.medium;
   const cat = categoryMeta(task.category);
   const [lightbox, setLightbox] = useState(null);
+  const [alerting, setAlerting] = useState(false);
 
   return (
     <div style={{ background: 'white', borderRadius: 10, padding: '1rem', border: '1px solid #e5e7eb', borderLeft: `4px solid ${p.color}`, marginBottom: '0.75rem' }}>
@@ -496,6 +497,26 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, members,
       {task.status === 'done' && (
         <button onClick={() => onMove(task.id, 'in-progress')} style={{ width: '100%', padding: '6px', background: '#f3f4f6', color: '#6b7280', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.8rem', marginTop: 4 }}>Reopen</button>
       )}
+
+      {/* Alert button — visible if task has assignees */}
+      {(() => {
+        const emails = task.assigneeEmails?.length > 0 ? task.assigneeEmails : (task.assigneeEmail ? [task.assigneeEmail] : []);
+        if (!emails.length || !onAlert) return null;
+        return (
+          <button
+            onClick={async () => {
+              setAlerting(true);
+              await onAlert(task);
+              setAlerting(false);
+            }}
+            disabled={alerting}
+            style={{ width: '100%', marginTop: 6, padding: '6px', background: alerting ? '#e5e7eb' : '#fef3c7', color: alerting ? '#9ca3af' : '#92400e', border: '1px solid #fde68a', borderRadius: 6, fontWeight: 600, cursor: alerting ? 'not-allowed' : 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+          >
+            <AlertTriangle size={13} />
+            {alerting ? 'Sending…' : `Alert ${emails.length} assignee${emails.length > 1 ? 's' : ''}`}
+          </button>
+        );
+      })()}
 
       {/* Images */}
       {(task.images || []).length > 0 && (
@@ -1111,6 +1132,15 @@ export default function App() {
     await saveLogs(l);
   };
 
+  const sendAlert = async (task) => {
+    const emails = task.assigneeEmails?.length > 0 ? task.assigneeEmails : (task.assigneeEmail ? [task.assigneeEmail] : []);
+    if (!emails.length) return;
+    const results = await Promise.all(emails.map(email => sendAssignEmail(task.id, email)));
+    const sent = emails.filter((_, i) => results[i]);
+    if (sent.length > 0) showToast(`✅ Alert sent to ${sent.join(', ')}`, 'success');
+    else showToast('❌ Failed to send alert', 'error');
+  };
+
   const addComment = async (taskId, text) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -1499,7 +1529,7 @@ export default function App() {
                     </div>
                   )}
                   {colTasks.map(task => (
-                    <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} members={members} scIndex={scIndexMap?.[task.id]} />
+                    <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} onAlert={sendAlert} members={members} scIndex={scIndexMap?.[task.id]} />
                   ))}
                 </div>
                 <button onClick={() => openNew(col.id)} style={{ width: '100%', padding: '8px', border: '2px dashed #d1d5db', background: 'transparent', borderRadius: 8, color: '#9ca3af', fontWeight: 600, cursor: 'pointer', fontSize: '0.83rem', marginTop: 4 }}>
