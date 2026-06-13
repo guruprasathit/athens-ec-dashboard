@@ -45,6 +45,16 @@ app.post('/api/auth', (req, res) => {
   res.status(400).json({ error: 'Invalid action' });
 });
 
+// Members — derive from users array for local dev
+app.get('/api/members', (req, res) => {
+  const members = getData('members');
+  if (members && members.length > 0) return res.json(members);
+  const users = getData('users');
+  const list = (Array.isArray(users) ? users : Object.values(users || {}))
+    .map(({ username, name, role, communityRole }) => ({ username, name, role, communityRole: communityRole || 'EC Member' }));
+  res.json(list);
+});
+
 app.get('/api/tasks', (req, res) => {
   res.json(getData('tasks'));
 });
