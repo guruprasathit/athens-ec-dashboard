@@ -148,18 +148,25 @@ export default async function handler(req, res) {
   const tasks = (await get('tasks')) || [];
   const { action, taskId } = req.query || {};
 
-  // ── 1. Assignment email (/api/notify?action=assign&taskId=X) ─────────────────
+  // ── 1. Assignment email (/api/notify?action=assign&taskId=X[&email=X]) ─────────
   if (action === 'assign' && taskId) {
     const task = tasks.find(t => String(t.id) === String(taskId));
     if (!task) return res.status(404).json({ error: 'Task not found' });
-    if (!task.assigneeEmail) return res.status(400).json({ error: 'Task has no assignee email' });
+
+    // Collect all emails to notify — specific email param, or all assigneeEmails, or fallback to assigneeEmail
+    const specificEmail = req.query.email;
+    const allEmails = specificEmail
+      ? [specificEmail]
+      : (task.assigneeEmails?.length > 0 ? task.assigneeEmails : (task.assigneeEmail ? [task.assigneeEmail] : []));
+
+    if (allEmails.length === 0) return res.status(400).json({ error: 'Task has no assignee email' });
 
     try {
       const subject = `[Athens EC Tasks] Task Assigned: ${task.title}`;
-      const r = await sendEmail(apiKey, task.assigneeEmail, subject, assignmentEmailHtml(task));
-      if (r.ok) return res.status(200).json({ success: true, email: task.assigneeEmail });
-      const body = await r.json().catch(() => ({}));
-      return res.status(502).json({ error: body.message || 'Failed to send email' });
+      const results = await Promise.all(allEmails.map(email => sendEmail(apiKey, email, subject, assignmentEmailHtml({ ...task, assigneeName: task.assigneeName || email }))));
+      const sent = allEmails.filter((_, i) => results[i].ok);
+      if (sent.length > 0) return res.status(200).json({ success: true, emails: sent });
+      return res.status(502).json({ error: 'Failed to send assignment emails' });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
