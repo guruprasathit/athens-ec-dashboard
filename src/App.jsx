@@ -272,17 +272,44 @@ function DueBadge({ dueDate, status }) {
 
 // ── Comments section ───────────────────────────────────────────────────────────
 
-function CommentsSection({ task, user, onAddComment }) {
+function CommentsSection({ task, user, members = [], onAddComment }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+  const [mentionDropdown, setMentionDropdown] = useState([]);
   const comments = task.comments || [];
   const atLimit = comments.length >= MAX_COMMENTS;
+
+  const handleInput = (val) => {
+    setText(val);
+    const lastAt = val.lastIndexOf('@');
+    if (lastAt >= 0) {
+      const afterAt = val.slice(lastAt + 1);
+      if (!afterAt.includes(' ')) {
+        const q = afterAt.toLowerCase();
+        const suggestions = members.filter(m =>
+          m.username !== user.username &&
+          (m.name.toLowerCase().includes(q) || m.username.toLowerCase().includes(q))
+        );
+        setMentionDropdown(suggestions);
+        return;
+      }
+    }
+    setMentionDropdown([]);
+  };
+
+  const selectMention = (member) => {
+    const lastAt = text.lastIndexOf('@');
+    const before = text.slice(0, lastAt);
+    setText(`${before}@${member.username} `);
+    setMentionDropdown([]);
+  };
 
   const submit = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
     onAddComment(task.id, trimmed);
     setText('');
+    setMentionDropdown([]);
   };
 
   return (
@@ -307,26 +334,56 @@ function CommentsSection({ task, user, onAddComment }) {
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>{c.author}</span>
                 <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{timeAgo(c.timestamp)}</span>
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#4b5563', lineHeight: 1.4 }}>{c.text}</div>
+              <div style={{ fontSize: '0.82rem', color: '#4b5563', lineHeight: 1.4 }}>
+                {c.text.split(/(@\S+@\S+\.\S+)/g).map((part, i) =>
+                  /^@\S+@\S+\.\S+$/.test(part)
+                    ? <span key={i} style={{ color: '#2563eb', fontWeight: 600 }}>{part}</span>
+                    : part
+                )}
+              </div>
             </div>
           ))}
 
           {!atLimit ? (
-            <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <input
-                value={text}
-                onChange={e => setText(e.target.value)}
-                onKeyPress={e => e.key === 'Enter' && submit()}
-                placeholder="Add a comment…"
-                style={{ flex: 1, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '0.82rem', outline: 'none', fontFamily: 'inherit' }}
-              />
-              <button
-                onClick={submit}
-                disabled={!text.trim()}
-                style={{ padding: '6px 10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: text.trim() ? 1 : 0.4 }}
-              >
-                <Send size={13} />
-              </button>
+            <div style={{ position: 'relative', marginTop: 6 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input
+                  value={text}
+                  onChange={e => handleInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') setMentionDropdown([]);
+                    if (e.key === 'Enter' && mentionDropdown.length === 0) submit();
+                  }}
+                  onBlur={() => setTimeout(() => setMentionDropdown([]), 150)}
+                  placeholder="Add a comment… type @ to mention"
+                  style={{ flex: 1, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: '0.82rem', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <button
+                  onClick={submit}
+                  disabled={!text.trim()}
+                  style={{ padding: '6px 10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: text.trim() ? 1 : 0.4 }}
+                >
+                  <Send size={13} />
+                </button>
+              </div>
+              {mentionDropdown.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 9999, marginTop: 4, overflow: 'hidden', maxHeight: 180, overflowY: 'auto' }}>
+                  <div style={{ padding: '0.3rem 0.7rem', fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', borderBottom: '1px solid #f3f4f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tag member</div>
+                  {mentionDropdown.map(m => (
+                    <div
+                      key={m.username}
+                      onMouseDown={e => { e.preventDefault(); selectMention(m); }}
+                      style={{ padding: '0.45rem 0.75rem', fontSize: '0.82rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, background: 'white' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                    >
+                      <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>@</span>
+                      <span style={{ fontWeight: 700, color: '#111827' }}>{m.name}</span>
+                      <span style={{ color: '#93c5fd', fontWeight: 400, fontSize: '0.75rem' }}>{m.username}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center', padding: '4px 0' }}>
@@ -341,7 +398,7 @@ function CommentsSection({ task, user, onAddComment }) {
 
 // ── Task Card ──────────────────────────────────────────────────────────────────
 
-function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, scIndex }) {
+function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, members, scIndex }) {
   const p = PRIORITY[task.priority] || PRIORITY.medium;
   const cat = categoryMeta(task.category);
   const [lightbox, setLightbox] = useState(null);
@@ -454,7 +511,7 @@ function TaskCard({ task, user, onEdit, onDelete, onMove, onAddComment, scIndex 
       )}
 
       {/* Comments */}
-      <CommentsSection task={task} user={user} onAddComment={onAddComment} />
+      <CommentsSection task={task} user={user} members={members} onAddComment={onAddComment} />
     </div>
   );
 }
@@ -978,6 +1035,19 @@ export default function App() {
     setTasks(updated);
     await saveTasks(updated);
     await saveLogs(l);
+    // Send email to @mentioned members
+    const mentions = [...text.matchAll(/@([^\s@]+@[^\s@]+\.[^\s@]+)/g)].map(m => m[1]);
+    if (mentions.length > 0) {
+      fetch(`${API_URL}/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emails: mentions,
+          message: `💬 ${user.name} mentioned you in a comment on task "${task.title}":\n\n"${text}"`,
+          tasks: [{ ...task, comments: [...comments, comment] }]
+        })
+      }).catch(() => {});
+    }
   };
 
   const clearAll = async () => {
@@ -1342,7 +1412,7 @@ export default function App() {
                     </div>
                   )}
                   {colTasks.map(task => (
-                    <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} scIndex={scIndexMap?.[task.id]} />
+                    <TaskCard key={task.id} task={task} user={user} onEdit={openEdit} onDelete={deleteTask} onMove={moveTask} onAddComment={addComment} members={members} scIndex={scIndexMap?.[task.id]} />
                   ))}
                 </div>
                 <button onClick={() => openNew(col.id)} style={{ width: '100%', padding: '8px', border: '2px dashed #d1d5db', background: 'transparent', borderRadius: 8, color: '#9ca3af', fontWeight: 600, cursor: 'pointer', fontSize: '0.83rem', marginTop: 4 }}>
